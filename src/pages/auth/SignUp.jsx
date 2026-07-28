@@ -18,7 +18,7 @@ export default function SignUp() {
     fullName: '',
     email: '',
     password: '',
-    role: location.state?.role || 'student',
+    role: location.state?.role === 'volunteer' ? 'student' : location.state?.role || 'student',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)

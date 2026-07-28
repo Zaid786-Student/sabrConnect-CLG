@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext'
 
 export default function SignIn() {
   const navigate = useNavigate()
-  const { signIn, signInDemo, signInWithGoogle } = useAuth()
+  const { signIn, signInWithGoogle } = useAuth()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -41,11 +41,6 @@ export default function SignIn() {
       setError(err.message || 'Unable to continue with Google.')
       setGoogleLoading(false)
     }
-  }
-
-  const tryDemo = (role) => {
-    const user = signInDemo(role)
-    navigate(`/dashboard/${user.role}`)
   }
 
   return (
@@ -95,24 +90,6 @@ export default function SignIn() {
       >
         <GoogleIcon /> {googleLoading ? 'Connecting…' : 'Continue with Google'}
       </Button>
-
-      <div className="my-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-bg-border" />
-        <span className="text-xs text-white/30">or preview a dashboard</span>
-        <div className="h-px flex-1 bg-bg-border" />
-      </div>
-
-      <div className="grid grid-cols-3 gap-2.5">
-        <Button variant="outline" className="text-xs" onClick={() => tryDemo('student')}>
-          Student
-        </Button>
-        <Button variant="outline" className="text-xs" onClick={() => tryDemo('volunteer')}>
-          Volunteer
-        </Button>
-        <Button variant="outline" className="text-xs" onClick={() => tryDemo('organizer')}>
-          Organizer
-        </Button>
-      </div>
 
       <p className="mt-6 text-center text-sm text-white/40">
         New to SabrConnect?{' '}

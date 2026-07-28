@@ -34,6 +34,10 @@ function writeUsers(users) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Set by resolveOAuthRole() when a Google "sign up" turns out to belong to
+  // an existing account — AuthCallback reads this to show a clear message
+  // instead of just bouncing back to /signin with no explanation.
+  const [oauthError, setOauthError] = useState('')
   // Reactive mirror of the USERS_KEY store (mock/local path only) so the
   // organizer's Approvals screen re-renders the moment a signup request is
   // accepted/rejected, instead of needing a manual refresh.
@@ -92,10 +96,30 @@ export function AuthProvider({ children }) {
     const { error: insertError } = await supabase
       .from('profiles')
       .insert({ user_id: sessionUser.id, full_name: fullName, role: pendingRole, status: 'approved' })
-    if (insertError) {
-      // Profile already existed (the trigger got there first) — fix the role.
+    if (!insertError) return // brand-new account, nothing else to do
+
+    // Insert failed because a profiles row already exists for this user_id.
+    // Two different situations look identical here:
+    //  1. A genuinely brand-new signup, where the profile trigger (see
+    //     migrations/001_profile_trigger.sql) just won a race against us —
+    //     it fires in the same transaction as the auth.users insert.
+    //  2. This Google account already existed from a previous signup, and
+    //     the person hit "Continue with Google" on the Sign Up screen again
+    //     by mistake — silently overwriting their role would be wrong here.
+    // auth.users.created_at tells these apart: a truly new auth user's
+    // created_at is a moment ago; a returning user's is not.
+    const ageMs = Date.now() - new Date(sessionUser.created_at).getTime()
+    const isBrandNewAuthUser = ageMs < 60_000
+
+    if (isBrandNewAuthUser) {
       await supabase.from('profiles').update({ role: pendingRole }).eq('user_id', sessionUser.id)
+      return
     }
+
+    // A real pre-existing account tried to "sign up" again — leave their
+    // role untouched, sign them back out, and surface a clear message.
+    await supabase.auth.signOut()
+    setOauthError('An account with this email already exists. Please sign in instead.')
   }
 
   useEffect(() => {
@@ -388,8 +412,10 @@ export function AuthProvider({ children }) {
       getUsersByStatus,
       approveUser,
       rejectUser,
+      oauthError,
+      clearOauthError: () => setOauthError(''),
     }),
-    [user, loading, users, supabaseUsers],
+    [user, loading, users, supabaseUsers, oauthError],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

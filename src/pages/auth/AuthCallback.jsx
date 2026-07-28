@@ -11,7 +11,7 @@ import AuthLayout from './AuthLayout'
 // cancelled on Google's side), it falls back to the sign-in screen instead
 // of leaving them stuck on a spinner forever.
 export default function AuthCallback() {
-  const { user, loading } = useAuth()
+  const { user, loading, oauthError, clearOauthError } = useAuth()
   const navigate = useNavigate()
   const [timedOut, setTimedOut] = useState(false)
 
@@ -22,14 +22,31 @@ export default function AuthCallback() {
   }, [user, navigate])
 
   useEffect(() => {
-    if (loading || user) return
+    if (loading || user || oauthError) return
     const timer = setTimeout(() => setTimedOut(true), 4000)
     return () => clearTimeout(timer)
-  }, [loading, user])
+  }, [loading, user, oauthError])
 
   useEffect(() => {
     if (timedOut && !user) navigate('/signin', { replace: true })
   }, [timedOut, user, navigate])
+
+  if (oauthError) {
+    return (
+      <AuthLayout title="Account already exists" subtitle={oauthError}>
+        <button
+          type="button"
+          onClick={() => {
+            clearOauthError()
+            navigate('/signin', { replace: true })
+          }}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-bg-border py-2.5 text-sm font-medium text-white/70 hover:text-white"
+        >
+          Back to sign in
+        </button>
+      </AuthLayout>
+    )
+  }
 
   return (
     <AuthLayout title="Signing you in…" subtitle="Just a moment while we finish setting up your account.">
