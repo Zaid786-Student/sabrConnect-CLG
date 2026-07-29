@@ -4,7 +4,7 @@ import {
   ArrowLeft, LayoutGrid, Users2, MessageSquare, Megaphone, FolderOpen,
   Send, Plus, Trophy, Target, Link2, Lock, Pencil, X, Check, Trash2,
   Paperclip, Megaphone as MegaphoneIcon, File as FileIcon, Download, Rocket,
-  Github, ExternalLink, Video, UserPlus,
+  Github, ExternalLink, Video, UserPlus, KeyRound, Copy,
 } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card } from '../../components/ui/Card'
@@ -91,10 +91,20 @@ export default function TeamWorkspace() {
   const baseTabs = TABS.filter((t) => !t.leaderOnly || isLeader)
   const pendingRequestCount = (team.joinRequests || []).filter((r) => r.status === 'pending').length
 
+  // The back link points wherever this team is actually registered — the
+  // hackathon detail page for a hackathon team, the internship detail page
+  // for an internship team, and the My Teams list only as a fallback for a
+  // team that isn't registered against anything yet.
+  const backTo = hackathonId
+    ? { to: `/dashboard/student/hackathons/${hackathonId}`, label: 'Back to Hackathon' }
+    : internshipId
+      ? { to: `/dashboard/student/internships/${internshipId}`, label: 'Back to Internship' }
+      : { to: '/dashboard/student/teams', label: 'Back to My Teams' }
+
   return (
     <DashboardShell role="student" title={team.team_name} subtitle={team.opportunity_title ? `Team workspace · ${team.opportunity_title}` : 'Team workspace'}>
-      <Link to="/dashboard/student/teams" className="mb-5 inline-flex items-center gap-1.5 text-xs font-medium text-white/40 hover:text-white">
-        <ArrowLeft size={13} /> Back to My Teams
+      <Link to={backTo.to} className="mb-5 inline-flex items-center gap-1.5 text-xs font-medium text-white/40 hover:text-white">
+        <ArrowLeft size={13} /> {backTo.label}
       </Link>
 
       <div className="mb-6 flex flex-wrap gap-1.5 rounded-xl border border-bg-border bg-white/[0.02] p-1.5">
@@ -178,6 +188,14 @@ export default function TeamWorkspace() {
 function OverviewTab({ team, user, isMember, isLeader, updateTeamProfile, addTeamAchievement }) {
   const [editing, setEditing] = useState(false)
   const [achieveForm, setAchieveForm] = useState('')
+  const [codeCopied, setCodeCopied] = useState(false)
+
+  const copyTeamCode = () => {
+    if (!team.team_code) return
+    navigator.clipboard?.writeText(team.team_code)
+    setCodeCopied(true)
+    setTimeout(() => setCodeCopied(false), 1500)
+  }
   const [form, setForm] = useState({
     logo: team.logo || '🚀',
     description: team.description || '',
@@ -314,6 +332,29 @@ function OverviewTab({ team, user, isMember, isLeader, updateTeamProfile, addTea
           </>
         )}
       </Card>
+
+      {isMember && team.team_code && (
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <KeyRound size={15} className="text-student" /> Team code
+              </div>
+              <p className="mt-1 text-xs text-white/45">Share this with teammates so they can join your team.</p>
+            </div>
+            <div className="flex items-center gap-3 rounded-xl border border-student/30 bg-student-soft px-5 py-2.5">
+              <span className="font-mono text-lg font-bold tracking-[0.3em] text-student">{team.team_code}</span>
+              <button
+                type="button"
+                onClick={copyTeamCode}
+                className="flex items-center gap-1 text-xs font-medium text-student/80 hover:text-student"
+              >
+                {codeCopied ? <Check size={14} /> : <Copy size={14} />} {codeCopied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {!isMember && (
         <Card>

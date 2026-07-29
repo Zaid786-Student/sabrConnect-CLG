@@ -190,6 +190,40 @@ export default function HackathonDetail() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          <Card>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-display text-base font-semibold">Create or Join a Team</h2>
+                <p className="mt-0.5 text-xs text-white/40">Join one with a team code, or start your own for {hackathon.title}.</p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={teamPanel === 'create' ? 'primary' : 'outline'}
+                  className="text-xs"
+                  onClick={() => setTeamPanel(teamPanel === 'create' ? null : 'create')}
+                >
+                  {teamPanel === 'create' ? <X size={14} /> : <Plus size={14} />} Create Team
+                </Button>
+                <Button
+                  variant={teamPanel === 'join' ? 'primary' : 'outline'}
+                  className="text-xs"
+                  onClick={() => setTeamPanel(teamPanel === 'join' ? null : 'join')}
+                >
+                  {teamPanel === 'join' ? <X size={14} /> : <KeyRound size={14} />} Join Team
+                </Button>
+              </div>
+            </div>
+
+            {teamPanel && (
+              <TeamRegistrationPanel
+                key={teamPanel}
+                defaultTab={teamPanel}
+                opportunity={{ id: hackathon.id, title: hackathon.title, type: 'hackathon' }}
+                onClose={() => setTeamPanel(null)}
+              />
+            )}
+          </Card>
+
           {hackathon.thumbnail_url && (
             <img src={hackathon.thumbnail_url} alt="" className="h-56 w-full rounded-2xl border border-bg-border object-cover" />
           )}
@@ -278,32 +312,7 @@ export default function HackathonDetail() {
                   <h2 className="font-display text-base font-semibold">Teams for this Hackathon</h2>
                   <p className="mt-0.5 text-xs text-white/40">Teams registered for {hackathon.title} — join one with a team code, or start your own.</p>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant={teamPanel === 'create' ? 'primary' : 'outline'}
-                    className="text-xs"
-                    onClick={() => setTeamPanel(teamPanel === 'create' ? null : 'create')}
-                  >
-                    {teamPanel === 'create' ? <X size={14} /> : <Plus size={14} />} Create Team
-                  </Button>
-                  <Button
-                    variant={teamPanel === 'join' ? 'primary' : 'outline'}
-                    className="text-xs"
-                    onClick={() => setTeamPanel(teamPanel === 'join' ? null : 'join')}
-                  >
-                    {teamPanel === 'join' ? <X size={14} /> : <KeyRound size={14} />} Join Team
-                  </Button>
-                </div>
               </div>
-
-              {teamPanel && (
-                <TeamRegistrationPanel
-                  key={teamPanel}
-                  defaultTab={teamPanel}
-                  opportunity={{ id: hackathon.id, title: hackathon.title, type: 'hackathon' }}
-                  onClose={() => setTeamPanel(null)}
-                />
-              )}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 {hackathonTeams.map((t) => {
