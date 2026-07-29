@@ -16,6 +16,7 @@ import InternshipWorkspace from './pages/student/InternshipWorkspace'
 import Teams from './pages/student/Teams'
 import TeamWorkspace from './pages/student/TeamWorkspace'
 import Applications from './pages/student/Applications'
+import ConfirmMembership from './pages/student/ConfirmMembership'
 import Connect from './pages/student/Connect'
 import Messages from './pages/student/Messages'
 import Feed from './pages/student/Feed'
@@ -63,6 +64,7 @@ export default function App() {
         <Route path="teams" element={<Teams />} />
         <Route path="teams/:id" element={<TeamWorkspace />} />
         <Route path="applications" element={<Applications />} />
+        <Route path="confirm/:applicationId/:token" element={<ConfirmMembership />} />
         <Route path="connect" element={<Connect />} />
         <Route path="messages" element={<Messages />} />
         <Route path="feed" element={<Feed />} />

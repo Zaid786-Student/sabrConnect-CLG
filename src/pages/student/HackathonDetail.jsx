@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, CalendarDays, MapPin, Trophy, Users2, CheckCircle2, Clock, Link2, ArrowUpRight,
-  Plus, KeyRound, X, UserRound, UserRoundX, Crown,
+  Plus, KeyRound, X, UserRound, UserRoundX, Crown, Copy, Check,
 } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card } from '../../components/ui/Card'
@@ -14,7 +14,7 @@ import TeamAvatar from '../../components/teams/TeamAvatar'
 import TeamRegistrationPanel from '../../components/teams/TeamRegistrationPanel'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
-import { formatDate, daysUntil, TEAM_CAPACITY } from '../../lib/utils'
+import { formatDate, daysUntil, uid, TEAM_CAPACITY } from '../../lib/utils'
 
 // Fixed institution — every registration is locked to this college.
 const FIXED_COLLEGE = 'G.C.R.G Group of Institution'
@@ -27,17 +27,6 @@ export default function HackathonDetail() {
 
   const hackathon = hackathons.find((h) => h.id === id)
   const application = getApplication(user?.id, id)
-  const myTeams = teams.filter((t) => t.members.some((m) => m.id === user?.id))
-
-  // Registration is team-only now — auto-select the student's team.
-  const [selectedTeamId, setSelectedTeamId] = useState(myTeams[0]?.id || '')
-  const [form, setForm] = useState({
-    year: '2nd Year',
-    problemStatement1: '',
-    problemStatement2: '',
-    whyJoin: '',
-  })
-  const [formError, setFormError] = useState('')
 
   if (!hackathon) {
     return (
@@ -57,11 +46,11 @@ export default function HackathonDetail() {
   // as before.
   const requiredTeamSize = hackathon.team_size || TEAM_CAPACITY
   const requiredFemaleMembers = hackathon.min_female_members ?? 1
-
-  const selectedTeam = myTeams.find((t) => t.id === selectedTeamId) || null
   const femaleMemberCount = (team) => (team?.members || []).filter((m) => (m.gender || '').toLowerCase() === 'female').length
 
-  // ---------- Teams section (scoped to this hackathon only) ----------
+  // ---------- Teams section (scoped to this hackathon only) — team
+  // formation (Create/Join Team, join-request approval) is untouched here,
+  // this just renders it filtered to this specific hackathon. ----------
   const hackathonTeams = teams.filter((t) => t.opportunity_id === hackathon.id)
   const [teamPanel, setTeamPanel] = useState(null) // null | 'create' | 'join'
   const [joinBusyId, setJoinBusyId] = useState('')
@@ -94,44 +83,85 @@ export default function HackathonDetail() {
     setJoinFeedback((f) => ({ ...f, [team.id]: '' }))
   }
 
-  const submit = (e) => {
+  // ---------- Registration (leader fills everyone upfront, teammates
+  // confirm their own spot later via an invite link) ----------
+  const [leaderForm, setLeaderForm] = useState({
+    name: user?.full_name || '',
+    email: user?.email || '',
+    phone: '',
+    year: '2nd Year',
+  })
+  const [memberRows, setMemberRows] = useState([{ name: '', phone: '' }])
+  const [statements, setStatements] = useState({ problemStatement1: '', problemStatement2: '', whyJoin: '' })
+  const [formError, setFormError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [copiedToken, setCopiedToken] = useState('')
+
+  const maxMemberRows = Math.max(0, requiredTeamSize - 1)
+
+  const addMemberRow = () => {
+    if (memberRows.length >= maxMemberRows) return
+    setMemberRows((rows) => [...rows, { name: '', phone: '' }])
+  }
+  const removeMemberRow = (index) => setMemberRows((rows) => rows.filter((_, i) => i !== index))
+  const updateMemberRow = (index, field, value) =>
+    setMemberRows((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)))
+
+  const submit = async (e) => {
     e.preventDefault()
     setFormError('')
 
-    if (!selectedTeam) {
-      setFormError('You need a team to register for this hackathon.')
+    if (!leaderForm.name.trim() || !leaderForm.email.trim() || !leaderForm.phone.trim()) {
+      setFormError('Please fill in your name, email, and phone number.')
       return
     }
-    if (selectedTeam.members.length < requiredTeamSize) {
-      setFormError(`Your team needs all ${requiredTeamSize} members (currently ${selectedTeam.members.length}) before registering.`)
+
+    const partiallyFilled = memberRows.some((m) => (m.name.trim() && !m.phone.trim()) || (!m.name.trim() && m.phone.trim()))
+    if (partiallyFilled) {
+      setFormError('Each teammate needs both a name and a phone number — remove any half-filled row instead.')
       return
     }
-    if (femaleMemberCount(selectedTeam) < requiredFemaleMembers) {
+    const filledMembers = memberRows.filter((m) => m.name.trim() && m.phone.trim())
+    if (filledMembers.length < maxMemberRows) {
       setFormError(
-        requiredFemaleMembers === 1
-          ? 'Your team must include at least one female member to register.'
-          : `Your team must include at least ${requiredFemaleMembers} female members to register.`,
+        `Add all ${maxMemberRows} teammate${maxMemberRows === 1 ? '' : 's'} (currently ${filledMembers.length}) — just their name and phone for now, they'll fill the rest themselves via their invite link.`,
       )
       return
     }
-    if (!form.problemStatement1.trim()) {
+    if (!statements.problemStatement1.trim()) {
       setFormError('Problem statement 1 is required.')
       return
     }
 
+    setSubmitting(true)
+    const pendingMembers = filledMembers.map((m) => ({
+      token: uid('inv'),
+      name: m.name.trim(),
+      phone: m.phone.trim(),
+      confirmed: false,
+    }))
+
     const formData = {
-      fullName: selectedTeam.leader_name,
-      email: selectedTeam.leader_email,
-      phone: selectedTeam.leader_contact,
+      fullName: leaderForm.name,
+      email: leaderForm.email,
+      phone: leaderForm.phone,
       college: FIXED_COLLEGE,
-      year: form.year,
-      teamName: selectedTeam.team_name,
-      problemStatement1: form.problemStatement1,
-      problemStatement2: form.problemStatement2,
-      whyJoin: form.whyJoin,
+      year: leaderForm.year,
+      problemStatement1: statements.problemStatement1,
+      problemStatement2: statements.problemStatement2,
+      whyJoin: statements.whyJoin,
+      pendingMembers,
     }
 
-    applyToOpportunity({ type: 'hackathon', opportunity: hackathon, user, formData, team: selectedTeam })
+    await applyToOpportunity({ type: 'hackathon', opportunity: hackathon, user, formData, notifyApplicant: true })
+    setSubmitting(false)
+  }
+
+  const inviteLink = (token) => `${window.location.origin}/dashboard/student/confirm/${application?.id}/${token}`
+  const copyLink = (token) => {
+    navigator.clipboard?.writeText(inviteLink(token))
+    setCopiedToken(token)
+    setTimeout(() => setCopiedToken(''), 1500)
   }
 
   return (
@@ -357,20 +387,45 @@ export default function HackathonDetail() {
                   Status: <span className="font-medium capitalize text-white/80">{application.status.replace('_', ' ')}</span>
                 </p>
                 <p className="mt-1 text-xs text-white/35">Submitted {formatDate(application.created_at)}</p>
+
                 <div className="mt-5 space-y-2 rounded-xl border border-bg-border bg-white/[0.02] p-4 text-xs text-white/45">
-                  {application.team_id ? (
-                    <>
-                      <p className="flex items-center gap-1.5 text-white/70">
-                        <Users2 size={13} className="text-student" /> Registered as team: {application.team_name}
-                      </p>
-                      <p><span className="text-white/30">Members ({application.member_count}):</span> {(application.members || []).map((m) => m.name).filter(Boolean).join(', ')}</p>
-                      <p><span className="text-white/30">Problem statement 1:</span> {application.formData?.problemStatement1 || '—'}</p>
-                      <p><span className="text-white/30">Problem statement 2:</span> {application.formData?.problemStatement2 || '—'}</p>
-                    </>
-                  ) : (
-                    <p><span className="text-white/30">Team:</span> {application.formData?.teamName || '—'}</p>
-                  )}
+                  <p className="flex items-center gap-1.5 text-white/70">
+                    <Users2 size={13} className="text-student" /> You're registered as team leader
+                  </p>
+                  <p><span className="text-white/30">Problem statement 1:</span> {application.formData?.problemStatement1 || '—'}</p>
+                  <p><span className="text-white/30">Problem statement 2:</span> {application.formData?.problemStatement2 || '—'}</p>
                 </div>
+
+                {application.formData?.pendingMembers?.length > 0 && (
+                  <div className="mt-5">
+                    <p className="mb-2 text-xs font-medium text-white/60">Teammates ({application.formData.pendingMembers.length})</p>
+                    <p className="mb-3 text-[11px] text-white/35">
+                      Share each link below with that teammate — they'll open it, confirm their name/phone, and fill in the rest of their own details.
+                    </p>
+                    <div className="space-y-2">
+                      {application.formData.pendingMembers.map((m) => (
+                        <div key={m.token} className="flex items-center justify-between gap-2 rounded-lg border border-bg-border bg-white/[0.02] px-3 py-2.5">
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-medium text-white/80">{m.name}</p>
+                            <p className="text-[11px] text-white/35">{m.phone}</p>
+                          </div>
+                          {m.confirmed ? (
+                            <Badge variant="success" className="shrink-0">Confirmed</Badge>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => copyLink(m.token)}
+                              className="flex shrink-0 items-center gap-1 rounded-md border border-student/30 bg-student-soft px-2.5 py-1 text-[11px] font-medium text-student hover:brightness-110"
+                            >
+                              {copiedToken === m.token ? <Check size={11} /> : <Copy size={11} />} {copiedToken === m.token ? 'Copied' : 'Copy invite link'}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {hackathon.community_links?.length > 0 && (
                   <div className="mt-5 space-y-2">
                     <p className="flex items-center gap-1.5 text-xs font-medium text-white/60">
@@ -403,68 +458,43 @@ export default function HackathonDetail() {
               <div>
                 <h2 className="mb-4 font-display text-base font-semibold">Register for this hackathon</h2>
                 <p className="mb-4 flex items-center gap-1.5 text-xs text-white/40">
-                  <Users2 size={13} className="text-student" /> Registration is team-based only — {requiredTeamSize} members per team
-                  {requiredFemaleMembers > 0 && `, including at least ${requiredFemaleMembers} female member${requiredFemaleMembers === 1 ? '' : 's'}`}.
+                  <Users2 size={13} className="text-student" /> You register as the team leader — {maxMemberRows > 0 ? `add your ${maxMemberRows} teammate${maxMemberRows === 1 ? '' : 's'}' name and phone below,` : ''} each teammate then confirms their own spot via a link you share with them.
                 </p>
 
-                {myTeams.length === 0 ? (
-                  <p className="mb-4 rounded-xl border border-dashed border-bg-border px-4 py-3 text-xs text-white/40">
-                    You&apos;re not on a team yet. <Link to="/dashboard/student/teams" className="text-student hover:underline">Create or join one</Link> to register.
-                  </p>
-                ) : myTeams.length === 1 ? (
-                  <div className="mb-4 flex items-center gap-3 rounded-xl border border-student/50 bg-student-soft px-3.5 py-2.5 text-sm">
-                    <TeamAvatar logo={selectedTeam?.logo} size="sm" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium text-white/85">{selectedTeam?.team_name}</span>
-                      <span className="block text-xs text-white/40">
-                        {selectedTeam?.members.length} member{selectedTeam?.members.length === 1 ? '' : 's'} · auto-selected
-                      </span>
-                    </span>
-                  </div>
-                ) : (
-                  <div className="mb-4 space-y-2">
-                    <p className="text-xs text-white/40">You&apos;re on multiple teams — pick which one is registering.</p>
-                    {myTeams.map((t) => (
-                      <label
-                        key={t.id}
-                        className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-2.5 text-sm transition-colors ${selectedTeamId === t.id ? 'border-student/50 bg-student-soft' : 'border-bg-border bg-white/[0.02] hover:border-white/20'}`}
-                      >
-                        <input
-                          type="radio"
-                          name="team"
-                          checked={selectedTeamId === t.id}
-                          onChange={() => setSelectedTeamId(t.id)}
-                          className="accent-student"
-                        />
-                        <TeamAvatar logo={t.logo} size="sm" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium text-white/85">{t.team_name}</span>
-                          <span className="block text-xs text-white/40">{t.members.length} member{t.members.length === 1 ? '' : 's'}</span>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-
-                {myTeams.length > 0 && (
-                  <form onSubmit={submit} className="space-y-4">
-                    <Field label="Team name" htmlFor="teamName">
-                      <Input id="teamName" value={selectedTeam?.team_name || ''} disabled readOnly />
+                <form onSubmit={submit} className="space-y-5">
+                  <div className="space-y-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/30">1. Your details (team leader)</p>
+                    <Field label="Your name" htmlFor="leaderName">
+                      <Input
+                        id="leaderName"
+                        required
+                        value={leaderForm.name}
+                        onChange={(e) => setLeaderForm((f) => ({ ...f, name: e.target.value }))}
+                      />
                     </Field>
-                    <Field label="Team leader's name" htmlFor="fullName">
-                      <Input id="fullName" value={selectedTeam?.leader_name || ''} disabled readOnly />
+                    <Field label="Your email" htmlFor="leaderEmail">
+                      <Input
+                        id="leaderEmail"
+                        type="email"
+                        required
+                        value={leaderForm.email}
+                        onChange={(e) => setLeaderForm((f) => ({ ...f, email: e.target.value }))}
+                      />
                     </Field>
-                    <Field label="Team leader's email" htmlFor="email">
-                      <Input id="email" type="email" value={selectedTeam?.leader_email || ''} disabled readOnly />
-                    </Field>
-                    <Field label="Team leader's phone" htmlFor="phone">
-                      <Input id="phone" value={selectedTeam?.leader_contact || ''} disabled readOnly />
+                    <Field label="Your phone" htmlFor="leaderPhone">
+                      <Input
+                        id="leaderPhone"
+                        required
+                        placeholder="+91 XXXXX XXXXX"
+                        value={leaderForm.phone}
+                        onChange={(e) => setLeaderForm((f) => ({ ...f, phone: e.target.value }))}
+                      />
                     </Field>
                     <Field label="College" htmlFor="college">
                       <Input id="college" value={FIXED_COLLEGE} disabled readOnly />
                     </Field>
                     <Field label="Year" htmlFor="year">
-                      <Select id="year" value={form.year} onChange={(e) => setForm((f) => ({ ...f, year: e.target.value }))}>
+                      <Select id="year" value={leaderForm.year} onChange={(e) => setLeaderForm((f) => ({ ...f, year: e.target.value }))}>
                         <option>1st Year</option>
                         <option>2nd Year</option>
                         <option>3rd Year</option>
@@ -472,32 +502,81 @@ export default function HackathonDetail() {
                         <option>Other</option>
                       </Select>
                     </Field>
+                  </div>
+
+                  {maxMemberRows > 0 && (
+                    <div className="space-y-3 border-t border-bg-border pt-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-white/30">
+                        2. Your teammates ({memberRows.length}/{maxMemberRows})
+                      </p>
+                      <p className="text-[11px] text-white/35">
+                        Just their name and phone for now — they'll fill in the rest (college year, gender, GitHub, etc.) themselves once you share their invite link.
+                      </p>
+                      {memberRows.map((row, index) => (
+                        <div key={index} className="flex items-start gap-2 rounded-lg border border-bg-border bg-white/[0.02] p-3">
+                          <div className="grid flex-1 gap-2 sm:grid-cols-2">
+                            <Input
+                              placeholder={`Member ${index + 2} name`}
+                              value={row.name}
+                              onChange={(e) => updateMemberRow(index, 'name', e.target.value)}
+                            />
+                            <Input
+                              placeholder="Mobile number"
+                              value={row.phone}
+                              onChange={(e) => updateMemberRow(index, 'phone', e.target.value)}
+                            />
+                          </div>
+                          {memberRows.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeMemberRow(index)}
+                              className="mt-2 shrink-0 text-white/30 hover:text-red-400"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {memberRows.length < maxMemberRows && (
+                        <button
+                          type="button"
+                          onClick={addMemberRow}
+                          className="flex items-center gap-1.5 text-xs font-medium text-student hover:underline"
+                        >
+                          <Plus size={13} /> Add teammate
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-4 border-t border-bg-border pt-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/30">3. Problem statements</p>
                     <Field label="Problem statement 1" htmlFor="problemStatement1" hint="Required.">
                       <Textarea
                         id="problemStatement1"
                         required
-                        value={form.problemStatement1}
-                        onChange={(e) => setForm((f) => ({ ...f, problemStatement1: e.target.value }))}
+                        value={statements.problemStatement1}
+                        onChange={(e) => setStatements((f) => ({ ...f, problemStatement1: e.target.value }))}
                       />
                     </Field>
                     <Field label="Problem statement 2 (optional)" htmlFor="problemStatement2">
                       <Textarea
                         id="problemStatement2"
-                        value={form.problemStatement2}
-                        onChange={(e) => setForm((f) => ({ ...f, problemStatement2: e.target.value }))}
+                        value={statements.problemStatement2}
+                        onChange={(e) => setStatements((f) => ({ ...f, problemStatement2: e.target.value }))}
                       />
                     </Field>
                     <Field label="Why do you want to join?" htmlFor="whyJoin">
-                      <Textarea id="whyJoin" value={form.whyJoin} onChange={(e) => setForm((f) => ({ ...f, whyJoin: e.target.value }))} />
+                      <Textarea id="whyJoin" value={statements.whyJoin} onChange={(e) => setStatements((f) => ({ ...f, whyJoin: e.target.value }))} />
                     </Field>
+                  </div>
 
-                    {formError && <p className="text-xs text-red-400">{formError}</p>}
+                  {formError && <p className="text-xs text-red-400">{formError}</p>}
 
-                    <Button type="submit" className="w-full" disabled={!selectedTeam}>
-                      {selectedTeam ? `Submit Registration for ${selectedTeam.team_name}` : 'Submit Registration'}
-                    </Button>
-                  </form>
-                )}
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? 'Submitting…' : 'Submit Registration'}
+                  </Button>
+                </form>
               </div>
             )}
           </Card>

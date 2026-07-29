@@ -49,11 +49,13 @@ export function useApplicationsModule({ addNotification, sendMail, adjustPartici
   const getApplication = (userId, opportunityId) =>
     applications.find((a) => a.user_id === userId && a.opportunity_id === opportunityId)
 
+  const getApplicationById = (applicationId) => applications.find((a) => a.id === applicationId)
+
   // `team` is optional: pass the student's Team object to register the whole
   // team in one go. The application is still owned by the submitting user
   // (normally the team leader), but carries the full member roster so the
   // organizer can see and approve it as a unit.
-  const applyToOpportunity = async ({ type, opportunity, user, formData, team }) => {
+  const applyToOpportunity = async ({ type, opportunity, user, formData, team, notifyApplicant = false }) => {
     const existing = getApplication(user?.id, opportunity.id)
     if (existing) return existing
 
@@ -100,6 +102,25 @@ export function useApplicationsModule({ addNotification, sendMail, adjustPartici
       role: 'organizer',
       link: '/dashboard/organizer/participants',
     })
+
+    // Used by the "leader registers, teammates confirm via link" flow — the
+    // leader gets an immediate mail + in-app confirmation that their
+    // registration went through, same channel setInApplicationStatus already
+    // uses for the accepted/rejected emails further down.
+    if (notifyApplicant && user?.id) {
+      addNotification(user.id, {
+        title: 'Registration submitted ✅',
+        message: `You've registered for ${opportunity.title}. We'll notify you once it's reviewed.`,
+        role: 'student',
+        link: '/dashboard/student/applications',
+      })
+      sendMail({
+        to: user.email,
+        toName: user.full_name,
+        subject: `You've registered for ${opportunity.title}`,
+        body: `Hi ${user.full_name || 'there'},\n\nYou have successfully registered for ${opportunity.title}. Your teammates will each get an invite link to confirm their own spot on the roster.\n\n— SabrConnect`,
+      })
+    }
     return application
   }
 
@@ -187,12 +208,72 @@ export function useApplicationsModule({ addNotification, sendMail, adjustPartici
     adjustParticipantCount(acceptedApp.opportunity_type, acceptedApp.opportunity_id, 1)
   }
 
+  // ---------- Member self-confirmation ----------
+  // The leader registers the whole team upfront (name + phone only for
+  // teammates), then shares one link per teammate. Opening that link lets a
+  // teammate fill in the rest of their own details (phone/college/year/etc)
+  // and claims their slot on the real `members` roster — mirroring exactly
+  // how a team member joining via TeamsContext adds themselves to an
+  // already-accepted application (see addMemberToAcceptedApplication above).
+  const confirmApplicationMember = async (applicationId, token, currentUser, details = {}) => {
+    const application = getApplicationById(applicationId)
+    if (!application) return { success: false, error: 'NOT_FOUND' }
+
+    const pendingMembers = application.formData?.pendingMembers || []
+    const index = pendingMembers.findIndex((m) => m.token === token)
+    if (index === -1) return { success: false, error: 'NOT_FOUND' }
+    if (pendingMembers[index].confirmed) return { success: false, error: 'ALREADY_CONFIRMED' }
+
+    const alreadyOnRoster = (application.members || []).some((m) => m.id === currentUser?.id)
+    if (alreadyOnRoster) return { success: false, error: 'ALREADY_CONFIRMED' }
+
+    const confirmedEntry = {
+      ...pendingMembers[index],
+      confirmed: true,
+      id: currentUser?.id,
+      phone: details.phone || pendingMembers[index].phone,
+      college: details.college || '',
+      year: details.year || '',
+      gender: details.gender || '',
+      githubUrl: details.githubUrl || '',
+    }
+    const nextPendingMembers = pendingMembers.map((m, i) => (i === index ? confirmedEntry : m))
+    const nextFormData = { ...application.formData, pendingMembers: nextPendingMembers }
+    const nextMembers = [...(application.members || []), { id: currentUser?.id, name: confirmedEntry.name }]
+    const nextCount = (application.member_count || 1) + 1
+
+    if (isSupabaseConfigured) {
+      await supabase
+        .from('applications')
+        .update(toDb({ formData: nextFormData, members: nextMembers, member_count: nextCount }))
+        .eq('id', applicationId)
+    }
+    setApplications((list) =>
+      list.map((a) => (a.id === applicationId ? { ...a, formData: nextFormData, members: nextMembers, member_count: nextCount } : a)),
+    )
+
+    if (application.status === 'accepted') {
+      adjustParticipantCount(application.opportunity_type, application.opportunity_id, 1)
+    }
+
+    addNotification(application.user_id, {
+      title: 'Teammate confirmed their registration',
+      message: `${confirmedEntry.name} confirmed their spot for ${application.title}.`,
+      role: 'student',
+      link: '/dashboard/student/applications',
+    })
+
+    return { success: true, application: { ...application, formData: nextFormData, members: nextMembers, member_count: nextCount } }
+  }
+
   return {
     applications,
     getApplication,
+    getApplicationById,
     applyToOpportunity,
     setApplicationStatus,
     addMemberToAcceptedApplication,
+    confirmApplicationMember,
   }
 }
 
