@@ -129,13 +129,31 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
     return code
   }
 
+  // The organizer can set a custom "members per team" size per hackathon
+  // (hackathon.team_size) which falls back to the app-wide TEAM_CAPACITY
+  // default when left blank — mirrors the same fallback HackathonDetail.jsx
+  // already uses to render its own team-size UI, so the two never disagree.
+  const capacityForOpportunity = (opportunityId, opportunityType) => {
+    if (!opportunityId) return TEAM_CAPACITY
+    const opportunity = opportunityType === 'internship' ? getInternship?.(opportunityId) : getHackathon?.(opportunityId)
+    return opportunity?.team_size || TEAM_CAPACITY
+  }
+
   const createTeam = async (data, creator) => {
     const leaderEmail = (data.leaderEmail || creator?.email || '').trim()
     if (isEmailAlreadyRegistered(leaderEmail)) {
       return { success: false, error: 'ALREADY_REGISTERED' }
     }
+    // A student can already be leading/on a team for this same opportunity
+    // (e.g. they joined one by code, then tried registering a second team
+    // with a different typed-in email) — block that the same way
+    // requestToJoinTeam already does for join requests.
+    if (data.opportunity_id && hasConflictingOpportunityTeam(creator?.id, data.opportunity_id)) {
+      return { success: false, error: 'ALREADY_REGISTERED' }
+    }
 
     const teamCode = generateUniqueTeamCode()
+    const teamCapacity = capacityForOpportunity(data.opportunity_id, data.opportunity_type)
 
     const memberProfile = {
       id: creator?.id || uid('user'),
@@ -175,7 +193,7 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
           skills: data.creatorSkills || [],
           interests: data.interests || [],
           roles_needed: data.rolesNeeded || [],
-          open_slots: TEAM_CAPACITY - 1,
+          open_slots: teamCapacity - 1,
           opportunity_id: data.opportunity_id || null,
           opportunity_title: data.opportunity_title || '',
           opportunity_type: data.opportunity_type || null,
@@ -241,7 +259,7 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
         interests: data.interests || [],
         achievements: [],
         rolesNeeded: data.rolesNeeded || [],
-        openSlots: TEAM_CAPACITY - 1,
+        openSlots: teamCapacity - 1,
         joinRequests: [],
         teamAnnouncements: [],
         resources: [],
@@ -280,6 +298,13 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
 
     const memberId = currentUser?.id || uid('user')
     if (team.members.some((m) => m.id === memberId)) return { success: false, error: 'ALREADY_MEMBER' }
+    // Someone already leading/on another team for this same hackathon
+    // shouldn't be able to join a second one here by simply typing a
+    // different email — check by their actual account id, scoped to this
+    // opportunity, the same way requestToJoinTeam already does.
+    if (hasConflictingOpportunityTeam(memberId, team.opportunity_id)) {
+      return { success: false, error: 'ALREADY_REGISTERED' }
+    }
     if ((team.openSlots ?? 0) <= 0) return { success: false, error: 'TEAM_FULL' }
 
     const newMember = {
