@@ -130,9 +130,10 @@ export default function TeamRegistrationPanel({ opportunity = null, defaultTab =
       !joinForm.memberName.trim() ||
       !joinForm.memberEmail.trim() ||
       !joinForm.memberContact.trim() ||
+      !joinForm.memberGender ||
       !joinForm.teamCode.trim()
     ) {
-      setJoinError('Please fill in all required fields, including the team code.')
+      setJoinError('Please fill in all required fields (name, email, contact, gender), including the team code.')
       return
     }
     setJoining(true)
@@ -436,6 +437,7 @@ export default function TeamRegistrationPanel({ opportunity = null, defaultTab =
             <Field label="Gender" htmlFor="memberGender">
               <Select
                 id="memberGender"
+                required
                 value={joinForm.memberGender}
                 onChange={(e) => setJoinForm((f) => ({ ...f, memberGender: e.target.value }))}
               >

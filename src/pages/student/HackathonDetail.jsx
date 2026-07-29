@@ -24,7 +24,7 @@ export default function HackathonDetail() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const {
-    hackathons, teams, getApplication, applyToOpportunity, requestToJoinTeam, cancelJoinRequest,
+    hackathons, teams, getApplication, applyToOpportunity,
     finalizeApplication,
   } = useData()
 
@@ -56,35 +56,8 @@ export default function HackathonDetail() {
   // this just renders it filtered to this specific hackathon. ----------
   const hackathonTeams = teams.filter((t) => t.opportunity_id === hackathon.id)
   const [teamPanel, setTeamPanel] = useState(null) // null | 'create' | 'join'
-  const [joinBusyId, setJoinBusyId] = useState('')
-  const [joinFeedback, setJoinFeedback] = useState({}) // teamId -> message
 
   const myTeamForThisHackathon = hackathonTeams.find((t) => t.members.some((m) => m.id === user?.id))
-
-  const REQUEST_ERROR_MESSAGES = {
-    ALREADY_MEMBER: "You're already on this team.",
-    ALREADY_REQUESTED: 'You already have a pending request for this team.',
-    TEAM_FULL: 'This team just filled its open slots.',
-    ALREADY_REGISTERED: "You're already registered with another team for this hackathon.",
-    UNKNOWN: 'Something went wrong — please try again.',
-  }
-
-  const sendJoinRequest = async (team) => {
-    setJoinBusyId(team.id)
-    const result = await requestToJoinTeam(team.id, user, {})
-    setJoinBusyId('')
-    setJoinFeedback((f) => ({
-      ...f,
-      [team.id]: result?.success ? 'Request sent — waiting on the team leader.' : REQUEST_ERROR_MESSAGES[result?.error] || REQUEST_ERROR_MESSAGES.UNKNOWN,
-    }))
-  }
-
-  const withdrawJoinRequest = async (team, requestId) => {
-    setJoinBusyId(team.id)
-    await cancelJoinRequest(team.id, requestId)
-    setJoinBusyId('')
-    setJoinFeedback((f) => ({ ...f, [team.id]: '' }))
-  }
 
   // ---------- Registration (leader fills everyone upfront, teammates
   // confirm their own spot later via an invite link) ----------
@@ -303,7 +276,7 @@ export default function HackathonDetail() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="font-display text-base font-semibold">Teams for this Hackathon</h2>
-                  <p className="mt-0.5 text-xs text-white/40">Teams registered for {hackathon.title} — request to join one, or start your own.</p>
+                  <p className="mt-0.5 text-xs text-white/40">Teams registered for {hackathon.title} — join one with a team code, or start your own.</p>
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -335,11 +308,9 @@ export default function HackathonDetail() {
               <div className="grid gap-4 sm:grid-cols-2">
                 {hackathonTeams.map((t) => {
                   const isMemberOfThisTeam = t.members.some((m) => m.id === user?.id)
-                  const myPendingRequest = (t.joinRequests || []).find((r) => r.user_id === user?.id && r.status === 'pending')
                   const candidatesRemaining = Math.max(0, requiredTeamSize - t.members.length)
                   const femaleRemaining = Math.max(0, requiredFemaleMembers - femaleMemberCount(t))
                   const isFull = candidatesRemaining === 0
-                  const feedback = joinFeedback[t.id]
 
                   return (
                     <div key={t.id} className="flex flex-col rounded-xl border border-bg-border bg-white/[0.02] p-4">
@@ -377,21 +348,10 @@ export default function HackathonDetail() {
                         {t.members.find((m) => m.isLeader) && <Crown size={12} className="relative left-1 text-organizer" />}
                       </div>
 
-                      {feedback && <p className="mt-3 text-xs text-white/45">{feedback}</p>}
-
                       <div className="mt-4">
                         {isMemberOfThisTeam ? (
                           <Button as={Link} to={`/dashboard/student/teams/${t.id}`} className="w-full text-xs">
                             Your Team — Open Workspace
-                          </Button>
-                        ) : myPendingRequest ? (
-                          <Button
-                            variant="outline"
-                            className="w-full text-xs"
-                            disabled={joinBusyId === t.id}
-                            onClick={() => withdrawJoinRequest(t, myPendingRequest.id)}
-                          >
-                            {joinBusyId === t.id ? 'Withdrawing…' : 'Requested — Cancel'}
                           </Button>
                         ) : myTeamForThisHackathon ? (
                           <p className="rounded-lg border border-dashed border-bg-border py-2 text-center text-xs text-white/35">
@@ -400,9 +360,9 @@ export default function HackathonDetail() {
                         ) : isFull ? (
                           <p className="rounded-lg border border-dashed border-bg-border py-2 text-center text-xs text-white/35">Team full</p>
                         ) : (
-                          <Button className="w-full text-xs" disabled={joinBusyId === t.id} onClick={() => sendJoinRequest(t)}>
-                            {joinBusyId === t.id ? 'Sending…' : 'Request to Join'}
-                          </Button>
+                          <p className="rounded-lg border border-dashed border-bg-border py-2 text-center text-xs text-white/35">
+                            Ask the team leader for their team code to join
+                          </p>
                         )}
                       </div>
                     </div>
