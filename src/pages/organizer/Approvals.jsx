@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, X, GraduationCap, HeartHandshake, Users2 } from 'lucide-react'
+import { Check, X, GraduationCap, Users2 } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card } from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -15,10 +15,7 @@ const TABS = [
 
 export default function Approvals() {
   const { user } = useAuth()
-  const {
-    applications, hackathons, internships, setApplicationStatus,
-    volunteerSignups, setVolunteerSignupStatus,
-  } = useData()
+  const { applications, hackathons, internships, setApplicationStatus } = useData()
   const [tab, setTab] = useState('pending')
 
   // Only requests tied to events this organizer created.
@@ -26,9 +23,8 @@ export default function Approvals() {
     ...hackathons.filter((h) => h.organizer_id === user?.id).map((h) => h.id),
     ...internships.filter((i) => i.organizer_id === user?.id).map((i) => i.id),
   ])
-  const myHackathonIds = new Set(hackathons.filter((h) => h.organizer_id === user?.id).map((h) => h.id))
 
-  // Normalize both applications (student) and volunteer signups into one shape.
+  // Normalize applications (student) into a display-friendly shape.
   const studentRequests = applications
     .filter((a) => myEventIds.has(a.opportunity_id))
     .map((a) => ({
@@ -41,19 +37,7 @@ export default function Approvals() {
       status: a.status === 'submitted' || a.status === 'in_review' ? 'pending' : a.status,
     }))
 
-  const volunteerRequests = volunteerSignups
-    .filter((s) => myHackathonIds.has(s.hackathon_id))
-    .map((s) => ({
-      id: `vol-${s.id}`,
-      raw_id: s.id,
-      kind: 'volunteer',
-      name: s.volunteer_name || 'Volunteer',
-      subtitle: s.hackathon_title,
-      created_at: s.created_at,
-      status: s.status === 'accepted' ? 'approved' : s.status,
-    }))
-
-  const all = [...studentRequests, ...volunteerRequests].sort(
+  const all = [...studentRequests].sort(
     (a, b) => new Date(b.created_at) - new Date(a.created_at),
   )
 
@@ -64,18 +48,14 @@ export default function Approvals() {
 
   const handleDecision = (request, status) => {
     const dbStatus = status === 'approved' ? 'accepted' : status
-    if (request.kind === 'student') {
-      setApplicationStatus(request.raw_id, dbStatus)
-    } else {
-      setVolunteerSignupStatus(request.raw_id, dbStatus)
-    }
+    setApplicationStatus(request.raw_id, dbStatus)
   }
 
   return (
     <DashboardShell
       role="organizer"
       title="Approvals"
-      subtitle="All pending requests — student applications and volunteer sign-ups — for the events you created."
+      subtitle="All pending student applications for the events you created."
     >
       <div className="mb-5 flex flex-wrap gap-1.5 rounded-xl border border-bg-border bg-white/[0.02] p-1.5">
         {TABS.map((t) => {
@@ -96,19 +76,18 @@ export default function Approvals() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {visible.map((r) => {
-          const RoleIcon = r.kind === 'student' ? GraduationCap : HeartHandshake
           return (
             <Card key={r.id} className="flex items-center justify-between gap-3 p-4">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-organizer-soft text-xs font-semibold text-organizer">
-                  {r.kind === 'student' && r.name === 'Team' ? <Users2 size={16} /> : initials(r.name)}
+                  {r.name === 'Team' ? <Users2 size={16} /> : initials(r.name)}
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{r.name}</p>
                   <p className="truncate text-xs text-white/40">{r.subtitle}</p>
                   <div className="mt-1.5 flex items-center gap-2">
                     <span className="flex items-center gap-1 text-[11px] capitalize text-white/45">
-                      <RoleIcon size={11} /> {r.kind}
+                      <GraduationCap size={11} /> {r.kind}
                     </span>
                     <Badge variant={r.status === 'pending' ? 'warning' : r.status === 'rejected' ? 'neutral' : 'success'} className="text-[10px] capitalize">
                       {r.status}

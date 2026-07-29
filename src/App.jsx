@@ -35,7 +35,6 @@ import OrganizerDashboard from './pages/organizer/OrganizerDashboard'
 import OrganizerEvents from './pages/organizer/OrganizerEvents'
 import OrganizerEventDetail from './pages/organizer/OrganizerEventDetail'
 import Participants from './pages/organizer/Participants'
-import Volunteers from './pages/organizer/Volunteers'
 import OrganizerAnnouncements from './pages/organizer/OrganizerAnnouncements'
 import Analytics from './pages/organizer/Analytics'
 import Approvals from './pages/organizer/Approvals'
@@ -87,7 +86,6 @@ export default function App() {
         <Route path="events" element={<OrganizerEvents />} />
         <Route path="events/:kind/:id" element={<OrganizerEventDetail />} />
         <Route path="participants" element={<Participants />} />
-        <Route path="volunteers" element={<Volunteers />} />
         <Route path="approvals" element={<Approvals />} />
         <Route path="announcements" element={<OrganizerAnnouncements />} />
         <Route path="analytics" element={<Analytics />} />

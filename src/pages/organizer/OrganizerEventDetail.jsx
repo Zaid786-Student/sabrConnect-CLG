@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { ArrowLeft, Check, X, Users2, ClipboardCheck, UserCog, Megaphone, Lock, Clock, ListChecks, ClipboardList } from 'lucide-react'
+import { ArrowLeft, Check, X, Users2, ClipboardCheck, Megaphone, Lock } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card, StatCard } from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -22,11 +22,8 @@ export default function OrganizerEventDetail() {
     hackathons,
     internships,
     applications,
-    volunteerSignups,
-    volunteerTasks,
     teams,
     setApplicationStatus,
-    setVolunteerSignupStatus,
     addHackathonNotice,
     addInternshipNotice,
     getSubmissionsForHackathon,
@@ -34,14 +31,11 @@ export default function OrganizerEventDetail() {
     setSubmissionStatus,
     setSubmissionOrganizerScore,
     setSubmissionAiScore,
-    addVolunteerTask,
   } = useData()
 
   const [searchParams] = useSearchParams()
   const [tab, setTab] = useState(searchParams.get('tab') || 'overview')
   const [noticeForm, setNoticeForm] = useState({ title: '', content: '' })
-  const [assigningId, setAssigningId] = useState(null)
-  const [taskForm, setTaskForm] = useState({ title: '', deadline: '', priority: 'medium' })
 
   const isHackathon = kind === 'hackathon'
   const event = isHackathon ? hackathons.find((h) => h.id === id) : internships.find((i) => i.id === id)
@@ -65,7 +59,7 @@ export default function OrganizerEventDetail() {
           <Lock className="text-white/30" size={28} />
           <p className="max-w-sm text-sm text-white/50">
             This event was created by {event.organizer_name}. Only the organizer who created it can view its
-            participants, volunteers, and manage its environment.
+            participants and manage its environment.
           </p>
           <Button variant="outline" className="mt-2" onClick={() => navigate('/dashboard/organizer/events')}>
             Back to Events
@@ -78,9 +72,6 @@ export default function OrganizerEventDetail() {
   const eventApplications = applications.filter((a) => a.opportunity_id === event.id)
   const acceptedApplications = eventApplications.filter((a) => a.status === 'accepted')
   const acceptedParticipantCount = acceptedApplications.reduce((sum, a) => sum + (a.member_count || 1), 0)
-  const eventSignups = isHackathon ? volunteerSignups.filter((s) => s.hackathon_id === event.id) : []
-  const pendingSignups = eventSignups.filter((s) => s.status === 'pending')
-  const acceptedSignups = eventSignups.filter((s) => s.status === 'accepted')
   const eventSubmissions = isHackathon ? getSubmissionsForHackathon(event.id) : getSubmissionsForInternship(event.id)
 
   const submitNotice = (e) => {
@@ -91,25 +82,9 @@ export default function OrganizerEventDetail() {
     setNoticeForm({ title: '', content: '' })
   }
 
-  const submitTask = (e, signup) => {
-    e.preventDefault()
-    if (!taskForm.title.trim()) return
-    addVolunteerTask({
-      volunteer_id: signup.volunteer_id,
-      event_id: event.id,
-      event_title: event.title,
-      title: taskForm.title.trim(),
-      deadline: taskForm.deadline || null,
-      priority: taskForm.priority,
-    })
-    setTaskForm({ title: '', deadline: '', priority: 'medium' })
-    setAssigningId(null)
-  }
-
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'participants', label: `Participants (${eventApplications.length})` },
-    ...(isHackathon ? [{ key: 'volunteers', label: `Volunteers (${eventSignups.length})` }] : []),
     { key: 'judging', label: `Judging (${eventSubmissions.length})` },
     { key: 'notices', label: `Notices (${event.notices?.length || 0})` },
   ]
@@ -142,12 +117,6 @@ export default function OrganizerEventDetail() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Total Applications" value={eventApplications.length} icon={ClipboardCheck} accent="student" />
             <StatCard label="Accepted Participants" value={acceptedParticipantCount} icon={Users2} accent="organizer" />
-            {isHackathon && (
-              <>
-                <StatCard label="Volunteer Requests" value={pendingSignups.length} icon={Clock} accent="volunteer" />
-                <StatCard label="Approved Volunteers" value={acceptedSignups.length} icon={UserCog} accent="organizer" />
-              </>
-            )}
           </div>
           <Card>
             {event.thumbnail_url && (
@@ -264,133 +233,6 @@ export default function OrganizerEventDetail() {
             </tbody>
           </table>
         </Card>
-      )}
-
-      {tab === 'volunteers' && isHackathon && (
-        <div className="space-y-6">
-          <div>
-            <h2 className="mb-3 font-display text-base font-semibold">Awaiting Approval</h2>
-            <div className="space-y-3">
-              {pendingSignups.map((s) => (
-                <Card key={s.id} className="flex items-center justify-between gap-3 p-4">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{s.volunteer_name || 'Volunteer'}</p>
-                    <p className="text-xs text-white/40">Requested {formatDate(s.created_at)}</p>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      onClick={() => setVolunteerSignupStatus(s.id, 'accepted')}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-student/30 bg-student-soft text-student hover:brightness-110"
-                      aria-label="Accept"
-                    >
-                      <Check size={14} />
-                    </button>
-                    <button
-                      onClick={() => setVolunteerSignupStatus(s.id, 'rejected')}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-bg-border text-white/40 hover:text-red-400"
-                      aria-label="Reject"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                </Card>
-              ))}
-              {pendingSignups.length === 0 && (
-                <p className="rounded-xl border border-dashed border-bg-border px-4 py-6 text-center text-xs text-white/25">
-                  No pending volunteer requests.
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <h2 className="mb-3 font-display text-base font-semibold">Approved Volunteers</h2>
-            <div className="space-y-3">
-              {acceptedSignups.map((s) => {
-                const myTasks = volunteerTasks.filter((t) => t.volunteer_id === s.volunteer_id && t.event_id === event.id)
-                const isAssigning = assigningId === s.id
-                return (
-                  <Card key={s.id} className="p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-sm font-medium">{s.volunteer_name || 'Volunteer'}</p>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="success">Confirmed</Badge>
-                        <button
-                          onClick={() => {
-                            setAssigningId(isAssigning ? null : s.id)
-                            setTaskForm({ title: '', deadline: '', priority: 'medium' })
-                          }}
-                          className="flex items-center gap-1.5 rounded-lg border border-organizer/30 bg-organizer-soft px-3 py-1.5 text-xs font-medium text-organizer hover:brightness-110"
-                        >
-                          <ClipboardList size={13} /> {isAssigning ? 'Cancel' : 'Assign Task'}
-                        </button>
-                      </div>
-                    </div>
-
-                    {myTasks.length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        {myTasks.map((t) => (
-                          <div key={t.id} className="flex items-center justify-between rounded-lg border border-bg-border bg-white/[0.02] px-3 py-2.5">
-                            <div className="min-w-0">
-                              <p className="truncate text-xs font-medium text-white/80">{t.title}</p>
-                              {t.deadline && <p className="text-[11px] text-white/35">Due {formatDate(t.deadline)}</p>}
-                            </div>
-                            <Badge variant={{ pending: 'warning', in_progress: 'info', completed: 'success' }[t.status]}>
-                              {t.status.replace('_', ' ')}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {myTasks.length === 0 && !isAssigning && (
-                      <p className="mt-2 text-xs text-white/25">No tasks assigned yet.</p>
-                    )}
-
-                    {isAssigning && (
-                      <form onSubmit={(e) => submitTask(e, s)} className="mt-4 space-y-3 border-t border-bg-border pt-4">
-                        <Input
-                          placeholder="Task title (e.g. Manage check-in desk)"
-                          required
-                          value={taskForm.title}
-                          onChange={(ev) => setTaskForm((f) => ({ ...f, title: ev.target.value }))}
-                        />
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div>
-                            <label className="mb-1.5 block text-xs text-white/40">Deadline</label>
-                            <input
-                              type="date"
-                              value={taskForm.deadline}
-                              onChange={(ev) => setTaskForm((f) => ({ ...f, deadline: ev.target.value }))}
-                              className="w-full rounded-lg border border-bg-border bg-white/[0.02] px-3 py-2 text-sm text-white/80 focus:border-organizer/40 focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-1.5 block text-xs text-white/40">Priority</label>
-                            <select
-                              value={taskForm.priority}
-                              onChange={(ev) => setTaskForm((f) => ({ ...f, priority: ev.target.value }))}
-                              className="w-full rounded-lg border border-bg-border bg-white/[0.02] px-3 py-2 text-sm text-white/80 focus:border-organizer/40 focus:outline-none"
-                            >
-                              <option value="low">Low</option>
-                              <option value="medium">Medium</option>
-                              <option value="high">High</option>
-                            </select>
-                          </div>
-                        </div>
-                        <Button type="submit" className="!py-2 text-xs">Assign Task to {s.volunteer_name || 'Volunteer'}</Button>
-                      </form>
-                    )}
-                  </Card>
-                )
-              })}
-              {acceptedSignups.length === 0 && (
-                <p className="rounded-xl border border-dashed border-bg-border px-4 py-6 text-center text-xs text-white/25">
-                  No approved volunteers yet.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
       )}
 
       {tab === 'judging' && (

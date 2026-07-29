@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Trophy, Users, UserCog, ClipboardCheck, ArrowRight, Plus } from 'lucide-react'
+import { Trophy, Users, ClipboardCheck, ArrowRight, Plus } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card, StatCard } from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -11,16 +11,13 @@ import { formatDate } from '../../lib/utils'
 export default function OrganizerDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const { hackathons, internships, applications, volunteerSignups } = useData()
+  const { hackathons, internships, applications } = useData()
 
   const myHackathons = hackathons.filter((h) => h.organizer_id === user?.id)
   const myInternships = internships.filter((i) => i.organizer_id === user?.id)
   const myEventIds = new Set([...myHackathons.map((h) => h.id), ...myInternships.map((i) => i.id)])
   const myApplications = applications.filter((a) => myEventIds.has(a.opportunity_id))
-  const myVolunteerSignups = volunteerSignups.filter((s) => myHackathons.some((h) => h.id === s.hackathon_id))
-  const pendingApplications = myApplications.filter((a) => a.status === 'submitted' || a.status === 'in_review').length
-  const pendingVolunteerSignups = myVolunteerSignups.filter((s) => s.status === 'pending').length
-  const pendingRequests = pendingApplications + pendingVolunteerSignups
+  const pendingRequests = myApplications.filter((a) => a.status === 'submitted' || a.status === 'in_review').length
 
   // "Total Participants" = everyone actually approved into one of this
   // organizer's events (hackathons + internships), team members included.
@@ -62,9 +59,6 @@ export default function OrganizerDashboard() {
         </button>
         <button className="text-left" onClick={() => navigate('/dashboard/organizer/approvals')}>
           <StatCard label="Pending Requests" value={pendingRequests} icon={ClipboardCheck} accent="volunteer" />
-        </button>
-        <button className="text-left" onClick={() => navigate('/dashboard/organizer/volunteers')}>
-          <StatCard label="Volunteers Signed Up" value={myVolunteerSignups.length} icon={UserCog} accent="organizer" />
         </button>
       </div>
 
