@@ -4,7 +4,7 @@ import {
   ArrowLeft, LayoutGrid, Users2, MessageSquare, Megaphone, FolderOpen,
   Send, Plus, Trophy, Target, Link2, Lock, Pencil, X, Check, Trash2,
   Paperclip, Megaphone as MegaphoneIcon, File as FileIcon, Download, Rocket,
-  Github, ExternalLink, Video,
+  Github, ExternalLink, Video, UserPlus,
 } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card } from '../../components/ui/Card'
@@ -13,6 +13,7 @@ import Input, { Field, Textarea } from '../../components/ui/Input'
 import NoticeList from '../../components/dashboard/NoticeList'
 import TeamAvatar from '../../components/teams/TeamAvatar'
 import MemberProfileCard from '../../components/teams/MemberProfileCard'
+import JoinRequestRow from '../../components/teams/JoinRequestRow'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { usePresence, useTyping } from '../../lib/presence'
@@ -32,6 +33,7 @@ function fileToDataUrl(file) {
 const TABS = [
   { id: 'overview', label: 'Overview', icon: LayoutGrid },
   { id: 'members', label: 'Members', icon: Users2 },
+  { id: 'requests', label: 'Join Requests', icon: UserPlus, leaderOnly: true },
   { id: 'chat', label: 'Chat', icon: MessageSquare },
   { id: 'announcements', label: 'Announcements', icon: Megaphone },
   { id: 'resources', label: 'Shared Resources', icon: FolderOpen },
@@ -46,6 +48,7 @@ export default function TeamWorkspace() {
     assignLeader, updateMemberProfile, updateTeamProfile, addTeamAchievement,
     addTeamAnnouncement, addTeamResource, removeTeamResource, sendTeamMessage,
     submitProject, submitTeamInternshipProject, getSubmission, getInternshipSubmission,
+    approveJoinRequest, rejectJoinRequest,
   } = useData()
   const [tab, setTab] = useState('overview')
 
@@ -85,7 +88,8 @@ export default function TeamWorkspace() {
   // team for a hackathon (or internship) — i.e. hackathonId/internshipId is
   // only set once that registration exists (see the comment above).
   const projectUnlocked = Boolean(hackathonId || internshipId)
-  const baseTabs = TABS
+  const baseTabs = TABS.filter((t) => !t.leaderOnly || isLeader)
+  const pendingRequestCount = (team.joinRequests || []).filter((r) => r.status === 'pending').length
 
   return (
     <DashboardShell role="student" title={team.team_name} subtitle={team.opportunity_title ? `Team workspace · ${team.opportunity_title}` : 'Team workspace'}>
@@ -108,6 +112,11 @@ export default function TeamWorkspace() {
             >
               {locked ? <Lock size={13} /> : <Icon size={13} />}
               {label}
+              {tabId === 'requests' && pendingRequestCount > 0 && (
+                <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-student px-1 text-[10px] font-bold text-black">
+                  {pendingRequestCount}
+                </span>
+              )}
             </button>
           )
         })}
@@ -132,6 +141,10 @@ export default function TeamWorkspace() {
           updateMemberProfile={updateMemberProfile}
           assignLeader={assignLeader}
         />
+      )}
+
+      {tab === 'requests' && isLeader && (
+        <RequestsTab team={team} approveJoinRequest={approveJoinRequest} rejectJoinRequest={rejectJoinRequest} />
       )}
 
       {tab === 'chat' && isMember && <ChatTab team={team} user={user} isLeader={isLeader} sendTeamMessage={sendTeamMessage} />}
@@ -365,6 +378,39 @@ function TagRow({ label, items, tone = 'default' }) {
           <span key={i} className={`rounded-full border px-2.5 py-1 text-xs ${toneClass}`}>{i}</span>
         ))}
       </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Leader-only: approve or reject students who asked to join via the
+// hackathon's Teams section. Pending requests surface first so the leader
+// doesn't have to scroll past ones already handled.
+function RequestsTab({ team, approveJoinRequest, rejectJoinRequest }) {
+  const requests = [...(team.joinRequests || [])].sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1
+    if (a.status !== 'pending' && b.status === 'pending') return 1
+    return new Date(b.created_at) - new Date(a.created_at)
+  })
+
+  if (requests.length === 0) {
+    return (
+      <Card className="text-center text-sm text-white/40">
+        No join requests yet. Share your team code, or students can send a request from the hackathon's Teams tab.
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {requests.map((r) => (
+        <JoinRequestRow
+          key={r.id}
+          request={r}
+          onApprove={() => approveJoinRequest(team.id, r.id)}
+          onReject={() => rejectJoinRequest(team.id, r.id)}
+        />
+      ))}
     </div>
   )
 }

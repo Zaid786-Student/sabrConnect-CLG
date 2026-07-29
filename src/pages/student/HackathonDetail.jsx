@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, CalendarDays, MapPin, Trophy, Users2, CheckCircle2, Clock, Link2, ArrowUpRight } from 'lucide-react'
+import {
+  ArrowLeft, CalendarDays, MapPin, Trophy, Users2, CheckCircle2, Clock, Link2, ArrowUpRight,
+  Plus, KeyRound, X, UserRound, UserRoundX, Crown,
+} from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card } from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -8,6 +11,7 @@ import Button from '../../components/ui/Button'
 import Input, { Field, Textarea, Select } from '../../components/ui/Input'
 import NoticeList from '../../components/dashboard/NoticeList'
 import TeamAvatar from '../../components/teams/TeamAvatar'
+import TeamRegistrationPanel from '../../components/teams/TeamRegistrationPanel'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { formatDate, daysUntil, TEAM_CAPACITY } from '../../lib/utils'
@@ -19,7 +23,7 @@ export default function HackathonDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { hackathons, teams, getApplication, applyToOpportunity } = useData()
+  const { hackathons, teams, getApplication, applyToOpportunity, requestToJoinTeam, cancelJoinRequest } = useData()
 
   const hackathon = hackathons.find((h) => h.id === id)
   const application = getApplication(user?.id, id)
@@ -56,6 +60,39 @@ export default function HackathonDetail() {
 
   const selectedTeam = myTeams.find((t) => t.id === selectedTeamId) || null
   const femaleMemberCount = (team) => (team?.members || []).filter((m) => (m.gender || '').toLowerCase() === 'female').length
+
+  // ---------- Teams section (scoped to this hackathon only) ----------
+  const hackathonTeams = teams.filter((t) => t.opportunity_id === hackathon.id)
+  const [teamPanel, setTeamPanel] = useState(null) // null | 'create' | 'join'
+  const [joinBusyId, setJoinBusyId] = useState('')
+  const [joinFeedback, setJoinFeedback] = useState({}) // teamId -> message
+
+  const myTeamForThisHackathon = hackathonTeams.find((t) => t.members.some((m) => m.id === user?.id))
+
+  const REQUEST_ERROR_MESSAGES = {
+    ALREADY_MEMBER: "You're already on this team.",
+    ALREADY_REQUESTED: 'You already have a pending request for this team.',
+    TEAM_FULL: 'This team just filled its open slots.',
+    ALREADY_REGISTERED: "You're already registered with another team for this hackathon.",
+    UNKNOWN: 'Something went wrong — please try again.',
+  }
+
+  const sendJoinRequest = async (team) => {
+    setJoinBusyId(team.id)
+    const result = await requestToJoinTeam(team.id, user, {})
+    setJoinBusyId('')
+    setJoinFeedback((f) => ({
+      ...f,
+      [team.id]: result?.success ? 'Request sent — waiting on the team leader.' : REQUEST_ERROR_MESSAGES[result?.error] || REQUEST_ERROR_MESSAGES.UNKNOWN,
+    }))
+  }
+
+  const withdrawJoinRequest = async (team, requestId) => {
+    setJoinBusyId(team.id)
+    await cancelJoinRequest(team.id, requestId)
+    setJoinBusyId('')
+    setJoinFeedback((f) => ({ ...f, [team.id]: '' }))
+  }
 
   const submit = (e) => {
     e.preventDefault()
@@ -188,6 +225,123 @@ export default function HackathonDetail() {
           <Card>
             <h2 className="mb-4 font-display text-base font-semibold">Notices & Updates</h2>
             <NoticeList notices={hackathon.notices} accent="student" />
+          </Card>
+
+          <Card>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-display text-base font-semibold">Teams for this Hackathon</h2>
+                <p className="mt-0.5 text-xs text-white/40">Teams registered for {hackathon.title} — request to join one, or start your own.</p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={teamPanel === 'create' ? 'primary' : 'outline'}
+                  className="text-xs"
+                  onClick={() => setTeamPanel(teamPanel === 'create' ? null : 'create')}
+                >
+                  {teamPanel === 'create' ? <X size={14} /> : <Plus size={14} />} Create Team
+                </Button>
+                <Button
+                  variant={teamPanel === 'join' ? 'primary' : 'outline'}
+                  className="text-xs"
+                  onClick={() => setTeamPanel(teamPanel === 'join' ? null : 'join')}
+                >
+                  {teamPanel === 'join' ? <X size={14} /> : <KeyRound size={14} />} Join Team
+                </Button>
+              </div>
+            </div>
+
+            {teamPanel && (
+              <TeamRegistrationPanel
+                key={teamPanel}
+                defaultTab={teamPanel}
+                opportunity={{ id: hackathon.id, title: hackathon.title, type: 'hackathon' }}
+                onClose={() => setTeamPanel(null)}
+              />
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {hackathonTeams.map((t) => {
+                const isMemberOfThisTeam = t.members.some((m) => m.id === user?.id)
+                const myPendingRequest = (t.joinRequests || []).find((r) => r.user_id === user?.id && r.status === 'pending')
+                const candidatesRemaining = Math.max(0, requiredTeamSize - t.members.length)
+                const femaleRemaining = Math.max(0, requiredFemaleMembers - femaleMemberCount(t))
+                const isFull = candidatesRemaining === 0
+                const feedback = joinFeedback[t.id]
+
+                return (
+                  <div key={t.id} className="flex flex-col rounded-xl border border-bg-border bg-white/[0.02] p-4">
+                    <div className="flex items-start gap-3">
+                      <TeamAvatar logo={t.logo} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <Link to={`/dashboard/student/teams/${t.id}`} className="block truncate font-display text-sm font-semibold hover:text-student">
+                          {t.team_name}
+                        </Link>
+                        <p className="text-xs text-white/35">Led by {t.leader_name || 'Team leader'}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="flex items-center gap-1 rounded-full border border-bg-border px-2.5 py-1 text-xs text-white/50">
+                        <UserRound size={12} className="text-student" /> {candidatesRemaining} slot{candidatesRemaining === 1 ? '' : 's'} left
+                      </span>
+                      {requiredFemaleMembers > 0 && (
+                        <span className="flex items-center gap-1 rounded-full border border-bg-border px-2.5 py-1 text-xs text-white/50">
+                          <UserRoundX size={12} className="text-organizer" /> {femaleRemaining} female slot{femaleRemaining === 1 ? '' : 's'} needed
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 -space-x-2 flex items-center">
+                      {t.members.slice(0, 6).map((m) => (
+                        <span
+                          key={m.id}
+                          title={m.name}
+                          className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-bg-card bg-student-soft text-[11px] font-semibold text-student"
+                        >
+                          {m.name?.[0]}
+                        </span>
+                      ))}
+                      {t.members.find((m) => m.isLeader) && <Crown size={12} className="relative left-1 text-organizer" />}
+                    </div>
+
+                    {feedback && <p className="mt-3 text-xs text-white/45">{feedback}</p>}
+
+                    <div className="mt-4">
+                      {isMemberOfThisTeam ? (
+                        <Button as={Link} to={`/dashboard/student/teams/${t.id}`} className="w-full text-xs">
+                          Your Team — Open Workspace
+                        </Button>
+                      ) : myPendingRequest ? (
+                        <Button
+                          variant="outline"
+                          className="w-full text-xs"
+                          disabled={joinBusyId === t.id}
+                          onClick={() => withdrawJoinRequest(t, myPendingRequest.id)}
+                        >
+                          {joinBusyId === t.id ? 'Withdrawing…' : 'Requested — Cancel'}
+                        </Button>
+                      ) : myTeamForThisHackathon ? (
+                        <p className="rounded-lg border border-dashed border-bg-border py-2 text-center text-xs text-white/35">
+                          Already on a team for this hackathon
+                        </p>
+                      ) : isFull ? (
+                        <p className="rounded-lg border border-dashed border-bg-border py-2 text-center text-xs text-white/35">Team full</p>
+                      ) : (
+                        <Button className="w-full text-xs" disabled={joinBusyId === t.id} onClick={() => sendJoinRequest(t)}>
+                          {joinBusyId === t.id ? 'Sending…' : 'Request to Join'}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+              {hackathonTeams.length === 0 && (
+                <p className="col-span-full rounded-xl border border-dashed border-bg-border px-4 py-8 text-center text-xs text-white/30">
+                  No teams have registered yet — be the first to create one.
+                </p>
+              )}
+            </div>
           </Card>
         </div>
 

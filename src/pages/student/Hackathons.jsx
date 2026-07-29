@@ -59,13 +59,7 @@ export default function Hackathons() {
                   navigate(`/dashboard/student/hackathons/${h.id}`)
                 }}
               >
-                {isApplied ? (
-                  <>
-                    <Check size={15} /> Details
-                  </>
-                ) : (
-                  'Apply Now'
-                )}
+                {isApplied && <Check size={15} />} Details
               </Button>
             </Card>
           )
