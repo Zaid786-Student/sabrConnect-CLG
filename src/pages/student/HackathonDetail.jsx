@@ -10,6 +10,7 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Input, { Field, Textarea, Select } from '../../components/ui/Input'
 import NoticeList from '../../components/dashboard/NoticeList'
+import ExpandableText from '../../components/ui/ExpandableText'
 import TeamAvatar from '../../components/teams/TeamAvatar'
 import TeamRegistrationPanel from '../../components/teams/TeamRegistrationPanel'
 import { useAuth } from '../../context/AuthContext'
@@ -254,7 +255,12 @@ export default function HackathonDetail() {
                 <Users2 size={12} /> {hackathon.participants} participants
               </span>
             </div>
-            <p className="text-sm leading-relaxed text-white/60">{hackathon.description}</p>
+            <ExpandableText
+              text={hackathon.description}
+              lines={3}
+              accent="student"
+              textClassName="text-sm leading-relaxed text-white/60"
+            />
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <div className="flex items-center gap-2 text-sm text-white/50">
@@ -297,13 +303,18 @@ export default function HackathonDetail() {
           {hackathon.rules && (
             <Card>
               <h2 className="mb-3 font-display text-base font-semibold">Rules & Guidelines</h2>
-              <p className="text-sm leading-relaxed text-white/55">{hackathon.rules}</p>
+              <ExpandableText
+                text={hackathon.rules}
+                lines={3}
+                accent="student"
+                textClassName="text-sm leading-relaxed text-white/55"
+              />
             </Card>
           )}
 
           <Card>
             <h2 className="mb-4 font-display text-base font-semibold">Notices & Updates</h2>
-            <NoticeList notices={hackathon.notices} accent="student" />
+            <NoticeList notices={hackathon.notices} accent="student" expandable />
           </Card>
 
           <Card>

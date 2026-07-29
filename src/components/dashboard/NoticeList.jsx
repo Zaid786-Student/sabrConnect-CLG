@@ -1,7 +1,13 @@
 import { Megaphone } from 'lucide-react'
 import { formatDate } from '../../lib/utils'
+import ExpandableText from '../ui/ExpandableText'
 
-export default function NoticeList({ notices = [], accent = 'student', emptyText = 'No notices yet — check back closer to the date.' }) {
+export default function NoticeList({
+  notices = [],
+  accent = 'student',
+  emptyText = 'No notices yet — check back closer to the date.',
+  expandable = false,
+}) {
   if (!notices.length) {
     return <p className="rounded-xl border border-dashed border-bg-border px-4 py-6 text-center text-xs text-white/30">{emptyText}</p>
   }
@@ -18,7 +24,17 @@ export default function NoticeList({ notices = [], accent = 'student', emptyText
           </div>
           <div className="min-w-0">
             <p className="text-sm font-medium">{n.title}</p>
-            <p className="mt-1 text-xs text-white/45">{n.content}</p>
+            {expandable ? (
+              <ExpandableText
+                text={n.content}
+                lines={2}
+                accent={accent}
+                className="mt-1"
+                textClassName="text-xs text-white/45"
+              />
+            ) : (
+              <p className="mt-1 text-xs text-white/45">{n.content}</p>
+            )}
             <p className="mt-1.5 text-[11px] text-white/30">{formatDate(n.created_at)}</p>
           </div>
         </div>
