@@ -596,6 +596,28 @@ export default function HackathonDetail() {
                   </Button>
                 )}
               </div>
+            ) : !myTeamForThisHackathon ? (
+              <div>
+                <h2 className="mb-3 font-display text-base font-semibold">Register for this hackathon</h2>
+                <p className="mb-5 text-sm text-white/50">
+                  Create your team first — you'll get a team code to share, and this registration form unlocks for you
+                  as the team leader right after.
+                </p>
+                <Button className="w-full" onClick={() => setTeamPanel('create')}>
+                  <Plus size={14} /> Create Team
+                </Button>
+              </div>
+            ) : myTeamForThisHackathon.leader_id !== user?.id ? (
+              <div>
+                <h2 className="mb-3 font-display text-base font-semibold">You're on {myTeamForThisHackathon.team_name}</h2>
+                <p className="text-sm text-white/50">
+                  Only your team leader can submit this hackathon's registration form — check in with them once your
+                  team is ready.
+                </p>
+                <Button as={Link} to={`/dashboard/student/teams/${myTeamForThisHackathon.id}`} variant="outline" className="mt-4 w-full">
+                  Open Team Workspace
+                </Button>
+              </div>
             ) : (
               <div>
                 <h2 className="mb-4 font-display text-base font-semibold">Register for this hackathon</h2>
