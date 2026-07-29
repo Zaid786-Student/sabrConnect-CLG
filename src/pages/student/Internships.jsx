@@ -53,13 +53,7 @@ export default function Internships() {
                   navigate(`/dashboard/student/internships/${i.id}`)
                 }}
               >
-                {isApplied ? (
-                  <>
-                    <Check size={15} /> Details
-                  </>
-                ) : (
-                  'Apply Now'
-                )}
+                {isApplied && <Check size={15} />} Details
               </Button>
             </Card>
           )

@@ -417,11 +417,31 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
   }
 
   // ---------- Team join requests ----------
+  // A student can only be registered with one team per hackathon/internship.
+  // This checks both existing membership and any other pending request the
+  // applicant already has out for the *same* opportunity — so someone can't
+  // end up double-booked once a leader approves a second request.
+  const hasConflictingOpportunityTeam = (applicantId, opportunityId) => {
+    if (!opportunityId || !applicantId) return false
+    return teamsRef.current.some((t) => {
+      if (t.opportunity_id !== opportunityId) return false
+      const isMember = t.members.some((m) => m.id === applicantId)
+      const hasPendingRequest = (t.joinRequests || []).some((r) => r.user_id === applicantId && r.status === 'pending')
+      return isMember || hasPendingRequest
+    })
+  }
+
   const requestToJoinTeam = async (teamId, applicant, { role, skills, message } = {}) => {
     const team = getTeam(teamId)
-    if (!team) return
-    if (team.members.some((m) => m.id === applicant?.id)) return
-    if ((team.joinRequests || []).some((r) => r.user_id === applicant?.id && r.status === 'pending')) return
+    if (!team) return { success: false, error: 'UNKNOWN' }
+    if (team.members.some((m) => m.id === applicant?.id)) return { success: false, error: 'ALREADY_MEMBER' }
+    if ((team.joinRequests || []).some((r) => r.user_id === applicant?.id && r.status === 'pending')) {
+      return { success: false, error: 'ALREADY_REQUESTED' }
+    }
+    if ((team.openSlots ?? 0) <= 0) return { success: false, error: 'TEAM_FULL' }
+    if (hasConflictingOpportunityTeam(applicant?.id, team.opportunity_id)) {
+      return { success: false, error: 'ALREADY_REGISTERED' }
+    }
 
     if (isSupabaseConfigured) {
       await supabase.from('team_join_requests').insert({
@@ -431,6 +451,7 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
         skills: skills || [],
         message: message || '',
       })
+    } else {
       const request = {
         id: uid('jreq'),
         user_id: applicant?.id,
@@ -449,6 +470,7 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
       role: 'student',
       link: `/dashboard/student/teams/${teamId}`,
     })
+    return { success: true }
   }
 
   const cancelJoinRequest = async (teamId, requestId) => {
@@ -473,6 +495,30 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
     const team = getTeam(teamId)
     const request = team?.joinRequests?.find((r) => r.id === requestId)
     if (!team || !request) return
+
+    const alreadyOnAnotherTeamForThisOpportunity =
+      team.opportunity_id &&
+      teamsRef.current.some(
+        (t) => t.id !== teamId && t.opportunity_id === team.opportunity_id && t.members.some((m) => m.id === request.user_id),
+      )
+    if (alreadyOnAnotherTeamForThisOpportunity) {
+      if (isSupabaseConfigured) {
+        await supabase.from('team_join_requests').update({ status: 'rejected' }).eq('id', requestId)
+      } else {
+        setTeams((list) =>
+          list.map((t) =>
+            t.id === teamId ? { ...t, joinRequests: t.joinRequests.map((r) => (r.id === requestId ? { ...r, status: 'rejected' } : r)) } : t,
+          ),
+        )
+      }
+      addNotification(request.user_id, {
+        title: 'Join request could not be approved',
+        message: `You're already registered with another team for this opportunity.`,
+        role: 'student',
+        link: '/dashboard/student/teams',
+      })
+      return
+    }
 
     if (team.openSlots <= 0) {
       if (isSupabaseConfigured) {
