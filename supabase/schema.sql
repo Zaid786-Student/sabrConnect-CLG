@@ -75,6 +75,10 @@ create table if not exists hackathons (
   location text,
   prize text,
   rules text,
+  thumbnail_url text,
+  team_size int,
+  min_female_members int,
+  community_links jsonb default '[]',
   created_at timestamptz not null default now()
 );
 
@@ -96,6 +100,7 @@ create table if not exists internships (
   duration text,
   responsibilities text,
   requirements text,
+  thumbnail_url text,
   created_at timestamptz not null default now()
 );
 

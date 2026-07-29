@@ -24,7 +24,11 @@ export default function Internships() {
               className="flex cursor-pointer flex-col justify-between gap-4 transition-colors hover:border-white/20 sm:flex-row sm:items-center"
               onClick={() => navigate(`/dashboard/student/internships/${i.id}`)}
             >
-              <div className="min-w-0">
+              <div className="flex min-w-0 gap-4">
+                {i.thumbnail_url && (
+                  <img src={i.thumbnail_url} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-bg-border object-cover" />
+                )}
+                <div className="min-w-0">
                 <h3 className="font-display text-base font-semibold">{i.title}</h3>
                 <p className="text-sm text-white/45">{i.company}</p>
                 <p className="mt-2 max-w-lg text-sm text-white/40 line-clamp-2">{i.description}</p>
@@ -38,6 +42,7 @@ export default function Internships() {
                   <span className="flex items-center gap-1.5">
                     <Clock size={13} /> {days > 0 ? `${days}d left` : 'Closed'} · {formatDate(i.deadline)}
                   </span>
+                </div>
                 </div>
               </div>
               <Button

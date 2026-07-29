@@ -150,12 +150,47 @@ export default function OrganizerEventDetail() {
             )}
           </div>
           <Card>
+            {event.thumbnail_url && (
+              <img src={event.thumbnail_url} alt="" className="-mx-6 -mt-6 mb-4 h-44 w-[calc(100%+3rem)] rounded-t-2xl object-cover" />
+            )}
             <div className="mb-3 flex items-center gap-2">
               <Badge variant={isHackathon ? 'organizer' : 'volunteer'} className="capitalize">
                 {event.status || 'open'}
               </Badge>
             </div>
             <p className="text-sm leading-relaxed text-white/60">{event.description}</p>
+            {isHackathon && (event.team_size || event.min_female_members) && (
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {event.team_size && (
+                  <span className="flex items-center gap-1.5 rounded-full border border-bg-border px-2.5 py-1 text-xs text-white/45">
+                    <Users2 size={12} /> {event.team_size} members / team
+                  </span>
+                )}
+                {!!event.min_female_members && (
+                  <span className="rounded-full border border-bg-border px-2.5 py-1 text-xs text-white/45">
+                    Min {event.min_female_members} female / team
+                  </span>
+                )}
+              </div>
+            )}
+            {isHackathon && event.community_links?.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-medium text-white/50">Community links shown to registered students</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {event.community_links.map((link, index) => (
+                    <a
+                      key={index}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full border border-bg-border px-2.5 py-1 text-xs text-white/60 hover:border-organizer/40 hover:text-organizer"
+                    >
+                      {link.label || 'Link'}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </Card>
         </div>
       )}

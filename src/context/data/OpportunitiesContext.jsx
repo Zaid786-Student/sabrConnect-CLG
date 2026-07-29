@@ -80,6 +80,13 @@ export function useOpportunitiesModule({ addNotification, getApplicantIdsForOppo
       ;['start_date', 'end_date', 'registration_deadline'].forEach((key) => {
         if (insertable[key] === '') insertable[key] = null
       })
+      // Same empty-string-breaks-the-column issue applies to the int
+      // columns used for the organizer's team setup — normalize here too
+      // in case a caller ever sends these as raw strings.
+      ;['team_size', 'min_female_members'].forEach((key) => {
+        if (insertable[key] === '') insertable[key] = null
+        else if (typeof insertable[key] === 'string') insertable[key] = Number(insertable[key])
+      })
       const { data: row, error } = await supabase.from('hackathons').insert(insertable).select().single()
       if (error) {
         // eslint-disable-next-line no-console

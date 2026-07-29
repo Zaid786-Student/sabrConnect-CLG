@@ -24,6 +24,16 @@ export default function StudentDashboard() {
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .slice(0, 4)
 
+  // Combined, newest-first feed of everything published — used by the
+  // "Explore Hackathons & Internships" card below so students can browse
+  // both opportunity types by thumbnail + title from the overview.
+  const exploreItems = [
+    ...hackathons.map((h) => ({ id: h.id, kind: 'hackathons', title: h.title, subtitle: h.organizer_name, thumbnail_url: h.thumbnail_url, date: h.start_date, created_at: h.created_at })),
+    ...internships.map((i) => ({ id: i.id, kind: 'internships', title: i.title, subtitle: i.company || i.organizer_name, thumbnail_url: i.thumbnail_url, date: i.deadline, created_at: i.created_at })),
+  ]
+    .sort((a, b) => new Date(b.created_at || b.date || 0) - new Date(a.created_at || a.date || 0))
+    .slice(0, 8)
+
   return (
     <DashboardShell role="student" title={`Welcome back, ${user?.full_name?.split(' ')[0] || 'Student'}`} subtitle="Here's what's happening across your opportunities.">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -73,25 +83,39 @@ export default function StudentDashboard() {
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold">Recommended for you</h2>
+            <h2 className="font-display text-lg font-semibold">Explore Hackathons & Internships</h2>
             <Link to="/dashboard/student/hackathons" className="flex items-center gap-1 text-sm text-white/40 hover:text-white">
               View all <ArrowRight size={13} />
             </Link>
           </div>
           <div className="space-y-3">
-            {hackathons.map((h) => (
+            {exploreItems.map((item) => (
               <div
-                key={h.id}
-                className="flex cursor-pointer items-center justify-between rounded-xl border border-bg-border bg-white/[0.02] px-4 py-3.5 transition-colors hover:border-white/20"
-                onClick={() => navigate(`/dashboard/student/hackathons/${h.id}`)}
+                key={`${item.kind}-${item.id}`}
+                className="flex cursor-pointer items-center gap-3 rounded-xl border border-bg-border bg-white/[0.02] px-4 py-3.5 transition-colors hover:border-white/20"
+                onClick={() => navigate(`/dashboard/student/${item.kind}/${item.id}`)}
               >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{h.title}</p>
-                  <p className="mt-0.5 truncate text-xs text-white/40">{h.organizer_name} · {formatDate(h.start_date)}</p>
+                {item.thumbnail_url ? (
+                  <img src={item.thumbnail_url} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />
+                ) : (
+                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${item.kind === 'hackathons' ? 'bg-organizer-soft text-organizer' : 'bg-student-soft text-student'}`}>
+                    {item.kind === 'hackathons' ? <Trophy size={18} /> : <Briefcase size={18} />}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{item.title}</p>
+                  <p className="mt-0.5 truncate text-xs text-white/40">{item.subtitle} · {formatDate(item.date)}</p>
                 </div>
-                <Badge variant="organizer" className="ml-3 shrink-0 capitalize">{h.status}</Badge>
+                <Badge variant={item.kind === 'hackathons' ? 'organizer' : 'volunteer'} className="ml-1 shrink-0 capitalize">
+                  {item.kind === 'hackathons' ? 'Hackathon' : 'Internship'}
+                </Badge>
               </div>
             ))}
+            {exploreItems.length === 0 && (
+              <p className="rounded-xl border border-dashed border-bg-border px-4 py-10 text-center text-xs text-white/25">
+                Nothing published yet — check back soon.
+              </p>
+            )}
           </div>
         </Card>
 

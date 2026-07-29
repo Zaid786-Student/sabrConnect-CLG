@@ -66,6 +66,9 @@ export default function InternshipDetail() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          {internship.thumbnail_url && (
+            <img src={internship.thumbnail_url} alt="" className="h-56 w-full rounded-2xl border border-bg-border object-cover" />
+          )}
           <Card>
             <div className="mb-3 flex flex-wrap items-center gap-2">
               {application?.status === 'accepted' && (

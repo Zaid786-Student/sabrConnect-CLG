@@ -24,6 +24,9 @@ export default function Hackathons() {
               className="flex cursor-pointer flex-col transition-colors hover:border-white/20"
               onClick={() => navigate(`/dashboard/student/hackathons/${h.id}`)}
             >
+              {h.thumbnail_url && (
+                <img src={h.thumbnail_url} alt="" className="-mx-6 -mt-6 mb-4 h-36 w-[calc(100%+3rem)] rounded-t-2xl object-cover" />
+              )}
               <div className="mb-3 flex items-center justify-between">
                 <Badge variant="organizer" className="capitalize">{h.status}</Badge>
                 <span className="flex items-center gap-1 text-xs text-white/40">

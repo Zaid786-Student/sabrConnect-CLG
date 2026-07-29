@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, CalendarDays, MapPin, Trophy, Users2, CheckCircle2, Clock } from 'lucide-react'
+import { ArrowLeft, CalendarDays, MapPin, Trophy, Users2, CheckCircle2, Clock, Link2, ArrowUpRight } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card } from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -47,8 +47,15 @@ export default function HackathonDetail() {
 
   const days = daysUntil(hackathon.registration_deadline || hackathon.start_date)
 
+  // Organizer-configured team setup for this hackathon, published from the
+  // "Publish New" form — falls back to the app-wide defaults when the
+  // organizer left these blank, so older/unset hackathons behave exactly
+  // as before.
+  const requiredTeamSize = hackathon.team_size || TEAM_CAPACITY
+  const requiredFemaleMembers = hackathon.min_female_members ?? 1
+
   const selectedTeam = myTeams.find((t) => t.id === selectedTeamId) || null
-  const hasFemaleMember = (team) => (team?.members || []).some((m) => (m.gender || '').toLowerCase() === 'female')
+  const femaleMemberCount = (team) => (team?.members || []).filter((m) => (m.gender || '').toLowerCase() === 'female').length
 
   const submit = (e) => {
     e.preventDefault()
@@ -58,12 +65,16 @@ export default function HackathonDetail() {
       setFormError('You need a team to register for this hackathon.')
       return
     }
-    if (selectedTeam.members.length < TEAM_CAPACITY) {
-      setFormError(`Your team needs all ${TEAM_CAPACITY} members (currently ${selectedTeam.members.length}) before registering.`)
+    if (selectedTeam.members.length < requiredTeamSize) {
+      setFormError(`Your team needs all ${requiredTeamSize} members (currently ${selectedTeam.members.length}) before registering.`)
       return
     }
-    if (!hasFemaleMember(selectedTeam)) {
-      setFormError('Your team must include at least one female member to register.')
+    if (femaleMemberCount(selectedTeam) < requiredFemaleMembers) {
+      setFormError(
+        requiredFemaleMembers === 1
+          ? 'Your team must include at least one female member to register.'
+          : `Your team must include at least ${requiredFemaleMembers} female members to register.`,
+      )
       return
     }
     if (!form.problemStatement1.trim()) {
@@ -97,6 +108,9 @@ export default function HackathonDetail() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          {hackathon.thumbnail_url && (
+            <img src={hackathon.thumbnail_url} alt="" className="h-56 w-full rounded-2xl border border-bg-border object-cover" />
+          )}
           <Card>
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <Badge variant="organizer" className="capitalize">{hackathon.status}</Badge>
@@ -147,6 +161,10 @@ export default function HackathonDetail() {
                   {days > 0 && <span className="text-white/30"> · {days}d left</span>}
                 </div>
               )}
+              <div className="flex items-center gap-2 text-sm text-white/50">
+                <Users2 size={15} className="text-student" /> {requiredTeamSize} members per team
+                {requiredFemaleMembers > 0 && ` · min ${requiredFemaleMembers} female`}
+              </div>
             </div>
 
             {hackathon.tags?.length > 0 && (
@@ -199,6 +217,25 @@ export default function HackathonDetail() {
                     <p><span className="text-white/30">Team:</span> {application.formData?.teamName || '—'}</p>
                   )}
                 </div>
+                {hackathon.community_links?.length > 0 && (
+                  <div className="mt-5 space-y-2">
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-white/60">
+                      <Link2 size={13} className="text-student" /> Join the community
+                    </p>
+                    {hackathon.community_links.map((link, index) => (
+                      <a
+                        key={index}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between gap-2 rounded-lg border border-student/30 bg-student-soft px-3.5 py-2.5 text-sm font-medium text-student transition hover:brightness-110"
+                      >
+                        {link.label || 'Join group'}
+                        <ArrowUpRight size={14} />
+                      </a>
+                    ))}
+                  </div>
+                )}
                 <Button variant="outline" as={Link} to="/dashboard/student/applications" className="mt-5 w-full">
                   View in Applications
                 </Button>
@@ -212,7 +249,8 @@ export default function HackathonDetail() {
               <div>
                 <h2 className="mb-4 font-display text-base font-semibold">Register for this hackathon</h2>
                 <p className="mb-4 flex items-center gap-1.5 text-xs text-white/40">
-                  <Users2 size={13} className="text-student" /> Registration is team-based only — {TEAM_CAPACITY} members per team, including at least one female member.
+                  <Users2 size={13} className="text-student" /> Registration is team-based only — {requiredTeamSize} members per team
+                  {requiredFemaleMembers > 0 && `, including at least ${requiredFemaleMembers} female member${requiredFemaleMembers === 1 ? '' : 's'}`}.
                 </p>
 
                 {myTeams.length === 0 ? (
