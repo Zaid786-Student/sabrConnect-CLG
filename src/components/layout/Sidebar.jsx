@@ -25,7 +25,6 @@ const navByRole = {
     { to: '/dashboard/student', label: 'Overview', icon: LayoutGrid, end: true },
     { to: '/dashboard/student/hackathons', label: 'Hackathons', icon: Trophy },
     { to: '/dashboard/student/internships', label: 'Internships', icon: Briefcase },
-    { to: '/dashboard/student/teams', label: 'My Teams', icon: Users },
     { to: '/dashboard/student/applications', label: 'Applications', icon: ClipboardList },
     { to: '/dashboard/student/team-matcher', label: 'AI Team Matcher', icon: Sparkles },
     { to: '/dashboard/student/recommendations', label: 'AI Recommendations', icon: Target },

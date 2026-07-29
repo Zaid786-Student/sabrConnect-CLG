@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, CalendarDays, MapPin, Trophy, Users2, CheckCircle2, Clock, Link2, ArrowUpRight,
-  Plus, KeyRound, X, UserRound, UserRoundX, Crown, Copy, Check,
+  Plus, KeyRound, X, UserRound, UserRoundX, Crown, Copy, Check, Mail, HeartHandshake, Lock,
 } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card } from '../../components/ui/Card'
@@ -14,7 +14,7 @@ import TeamAvatar from '../../components/teams/TeamAvatar'
 import TeamRegistrationPanel from '../../components/teams/TeamRegistrationPanel'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
-import { formatDate, daysUntil, uid, TEAM_CAPACITY } from '../../lib/utils'
+import { formatDate, daysUntil, uid, TEAM_CAPACITY, GENDER_OPTIONS } from '../../lib/utils'
 
 // Fixed institution — every registration is locked to this college.
 const FIXED_COLLEGE = 'G.C.R.G Group of Institution'
@@ -23,10 +23,18 @@ export default function HackathonDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { hackathons, teams, getApplication, applyToOpportunity, requestToJoinTeam, cancelJoinRequest } = useData()
+  const {
+    hackathons, teams, getApplication, applyToOpportunity, requestToJoinTeam, cancelJoinRequest,
+    volunteerSignUp, getVolunteerSignup, finalizeApplication,
+  } = useData()
 
   const hackathon = hackathons.find((h) => h.id === id)
   const application = getApplication(user?.id, id)
+  const mySignup = getVolunteerSignup(user?.id, id)
+
+  // Which of the two registration paths this page is currently showing —
+  // both live on this same hackathon page, just swapping the sidebar panel.
+  const [viewAs, setViewAs] = useState('student')
 
   if (!hackathon) {
     return (
@@ -90,8 +98,9 @@ export default function HackathonDetail() {
     email: user?.email || '',
     phone: '',
     year: '2nd Year',
+    gender: '',
   })
-  const [memberRows, setMemberRows] = useState([{ name: '', phone: '' }])
+  const [memberRows, setMemberRows] = useState([{ name: '', email: '', phone: '' }])
   const [statements, setStatements] = useState({ problemStatement1: '', problemStatement2: '', whyJoin: '' })
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -101,7 +110,7 @@ export default function HackathonDetail() {
 
   const addMemberRow = () => {
     if (memberRows.length >= maxMemberRows) return
-    setMemberRows((rows) => [...rows, { name: '', phone: '' }])
+    setMemberRows((rows) => [...rows, { name: '', email: '', phone: '' }])
   }
   const removeMemberRow = (index) => setMemberRows((rows) => rows.filter((_, i) => i !== index))
   const updateMemberRow = (index, field, value) =>
@@ -111,17 +120,19 @@ export default function HackathonDetail() {
     e.preventDefault()
     setFormError('')
 
-    if (!leaderForm.name.trim() || !leaderForm.email.trim() || !leaderForm.phone.trim()) {
-      setFormError('Please fill in your name, email, and phone number.')
+    if (!leaderForm.name.trim() || !leaderForm.email.trim() || !leaderForm.phone.trim() || !leaderForm.gender) {
+      setFormError('Please fill in your name, email, phone number, and gender.')
       return
     }
 
-    const partiallyFilled = memberRows.some((m) => (m.name.trim() && !m.phone.trim()) || (!m.name.trim() && m.phone.trim()))
+    const partiallyFilled = memberRows.some(
+      (m) => (m.name.trim() || m.email.trim() || m.phone.trim()) && (!m.name.trim() || !m.email.trim() || !m.phone.trim()),
+    )
     if (partiallyFilled) {
-      setFormError('Each teammate needs both a name and a phone number — remove any half-filled row instead.')
+      setFormError('Each teammate needs a name, email, and phone number — remove any half-filled row instead.')
       return
     }
-    const filledMembers = memberRows.filter((m) => m.name.trim() && m.phone.trim())
+    const filledMembers = memberRows.filter((m) => m.name.trim() && m.email.trim() && m.phone.trim())
     if (filledMembers.length < maxMemberRows) {
       setFormError(
         `Add all ${maxMemberRows} teammate${maxMemberRows === 1 ? '' : 's'} (currently ${filledMembers.length}) — just their name and phone for now, they'll fill the rest themselves via their invite link.`,
@@ -137,6 +148,7 @@ export default function HackathonDetail() {
     const pendingMembers = filledMembers.map((m) => ({
       token: uid('inv'),
       name: m.name.trim(),
+      email: m.email.trim(),
       phone: m.phone.trim(),
       confirmed: false,
     }))
@@ -145,6 +157,7 @@ export default function HackathonDetail() {
       fullName: leaderForm.name,
       email: leaderForm.email,
       phone: leaderForm.phone,
+      gender: leaderForm.gender,
       college: FIXED_COLLEGE,
       year: leaderForm.year,
       problemStatement1: statements.problemStatement1,
@@ -163,6 +176,41 @@ export default function HackathonDetail() {
     setCopiedToken(token)
     setTimeout(() => setCopiedToken(''), 1500)
   }
+  // No email-sending backend is wired up yet (see NotificationsContext's
+  // sendMail — it only logs to mail_log, it doesn't reach a real inbox), so
+  // this opens the leader's own mail client with the invite pre-filled
+  // rather than silently pretending an email went out.
+  const mailtoInvite = (member) => {
+    const subject = encodeURIComponent(`Join my team for ${hackathon.title}`)
+    const body = encodeURIComponent(
+      `Hi ${member.name},\n\nYou've been added to our team for ${hackathon.title}. Confirm your spot here:\n${inviteLink(member.token)}\n\nSee you there!`,
+    )
+    return `mailto:${member.email}?subject=${subject}&body=${body}`
+  }
+
+  // ---------- Final submission gating ----------
+  // The leader's "Submit Registration" above is just step one — teammates
+  // still need to confirm via their invite link before the roster is
+  // actually complete. Only once the team has exactly the hackathon's
+  // required size, with enough confirmed female members, does Final
+  // Submission unlock.
+  const pendingMembers = application?.formData?.pendingMembers || []
+  const confirmedMemberCount = pendingMembers.filter((m) => m.confirmed).length
+  const totalConfirmedCount = application ? 1 + confirmedMemberCount : 0 // +1 for the leader
+  const femaleCount =
+    (application && (application.formData?.gender || '').toLowerCase() === 'female' ? 1 : 0) +
+    pendingMembers.filter((m) => m.confirmed && (m.gender || '').toLowerCase() === 'female').length
+  const teamSizeMet = totalConfirmedCount >= requiredTeamSize
+  const femaleCountMet = femaleCount >= requiredFemaleMembers
+  const rosterComplete = teamSizeMet && femaleCountMet
+  const isFinalized = Boolean(application?.formData?.finalized)
+  const [finalizing, setFinalizing] = useState(false)
+
+  const submitFinal = async () => {
+    setFinalizing(true)
+    await finalizeApplication(application.id)
+    setFinalizing(false)
+  }
 
   return (
     <DashboardShell role="student" title={hackathon.title} subtitle={hackathon.organizer_name}>
@@ -172,6 +220,27 @@ export default function HackathonDetail() {
       >
         <ArrowLeft size={15} /> Back to Hackathons
       </button>
+
+      <div className="mb-6 flex gap-2 rounded-xl border border-bg-border bg-white/[0.02] p-1.5 sm:w-fit">
+        <button
+          type="button"
+          onClick={() => setViewAs('student')}
+          className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium transition-colors ${
+            viewAs === 'student' ? 'bg-student-soft text-student' : 'text-white/50 hover:text-white'
+          }`}
+        >
+          <Users2 size={14} /> Student — register a team
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewAs('volunteer')}
+          className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium transition-colors ${
+            viewAs === 'volunteer' ? 'bg-volunteer-soft text-volunteer' : 'text-white/50 hover:text-white'
+          }`}
+        >
+          <HeartHandshake size={14} /> Volunteer for this event
+        </button>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -377,7 +446,37 @@ export default function HackathonDetail() {
 
         <div>
           <Card className="lg:sticky lg:top-24">
-            {application ? (
+            {viewAs === 'volunteer' ? (
+              mySignup?.status === 'accepted' ? (
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <CheckCircle2 size={18} className="text-volunteer" />
+                    <h2 className="font-display text-base font-semibold">You're on the team</h2>
+                  </div>
+                  <p className="text-sm text-white/50">
+                    Organizers can now assign you tasks for this event from their Task Board.
+                  </p>
+                </div>
+              ) : mySignup?.status === 'pending' ? (
+                <div>
+                  <h2 className="mb-3 font-display text-base font-semibold">Request sent</h2>
+                  <p className="text-sm text-white/50">
+                    Your request to volunteer is waiting on approval from the organizing team.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <h2 className="mb-3 font-display text-base font-semibold">Volunteer for this event</h2>
+                  <p className="mb-5 text-sm text-white/50">
+                    Sign up and the organizing team will review your request before confirming your spot — no team
+                    registration needed.
+                  </p>
+                  <Button className="w-full !bg-volunteer !text-black hover:brightness-110" onClick={() => volunteerSignUp(hackathon, user)}>
+                    Request to Volunteer
+                  </Button>
+                </div>
+              )
+            ) : application ? (
               <div>
                 <div className="mb-4 flex items-center gap-2">
                   <CheckCircle2 size={18} className="text-student" />
@@ -400,31 +499,72 @@ export default function HackathonDetail() {
                   <div className="mt-5">
                     <p className="mb-2 text-xs font-medium text-white/60">Teammates ({application.formData.pendingMembers.length})</p>
                     <p className="mb-3 text-[11px] text-white/35">
-                      Share each link below with that teammate — they'll open it, confirm their name/phone, and fill in the rest of their own details.
+                      Email or share the link below with each teammate — they'll open it, confirm their name/phone, and
+                      fill in the rest of their own details.
                     </p>
                     <div className="space-y-2">
                       {application.formData.pendingMembers.map((m) => (
                         <div key={m.token} className="flex items-center justify-between gap-2 rounded-lg border border-bg-border bg-white/[0.02] px-3 py-2.5">
                           <div className="min-w-0">
                             <p className="truncate text-xs font-medium text-white/80">{m.name}</p>
+                            <p className="truncate text-[11px] text-white/35">{m.email}</p>
                             <p className="text-[11px] text-white/35">{m.phone}</p>
                           </div>
                           {m.confirmed ? (
                             <Badge variant="success" className="shrink-0">Confirmed</Badge>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => copyLink(m.token)}
-                              className="flex shrink-0 items-center gap-1 rounded-md border border-student/30 bg-student-soft px-2.5 py-1 text-[11px] font-medium text-student hover:brightness-110"
-                            >
-                              {copiedToken === m.token ? <Check size={11} /> : <Copy size={11} />} {copiedToken === m.token ? 'Copied' : 'Copy invite link'}
-                            </button>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              <a
+                                href={mailtoInvite(m)}
+                                className="flex items-center gap-1 rounded-md border border-bg-border px-2.5 py-1 text-[11px] font-medium text-white/60 hover:text-white"
+                                title="Opens your email app with the invite pre-filled"
+                              >
+                                <Mail size={11} /> Email
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => copyLink(m.token)}
+                                className="flex items-center gap-1 rounded-md border border-student/30 bg-student-soft px-2.5 py-1 text-[11px] font-medium text-student hover:brightness-110"
+                              >
+                                {copiedToken === m.token ? <Check size={11} /> : <Copy size={11} />} {copiedToken === m.token ? 'Copied' : 'Copy link'}
+                              </button>
+                            </div>
                           )}
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
+
+                <div className="mt-5 rounded-xl border border-bg-border bg-white/[0.02] p-4">
+                  <p className="mb-2 text-xs font-medium text-white/60">Final submission</p>
+                  {isFinalized ? (
+                    <p className="flex items-center gap-1.5 text-xs text-student">
+                      <CheckCircle2 size={13} /> Roster finalized — your team is locked in.
+                    </p>
+                  ) : (
+                    <>
+                      <ul className="mb-3 space-y-1 text-[11px] text-white/45">
+                        <li className={teamSizeMet ? 'text-student' : ''}>
+                          {teamSizeMet ? '✓' : '○'} {totalConfirmedCount}/{requiredTeamSize} members confirmed
+                        </li>
+                        {requiredFemaleMembers > 0 && (
+                          <li className={femaleCountMet ? 'text-student' : ''}>
+                            {femaleCountMet ? '✓' : '○'} {femaleCount}/{requiredFemaleMembers} confirmed female member{requiredFemaleMembers === 1 ? '' : 's'}
+                          </li>
+                        )}
+                      </ul>
+                      <Button
+                        className="w-full"
+                        disabled={!rosterComplete || finalizing}
+                        onClick={submitFinal}
+                        title={!rosterComplete ? 'Unlocks once every teammate has confirmed and the team meets the criteria above' : undefined}
+                      >
+                        {!rosterComplete && <Lock size={14} />} {finalizing ? 'Submitting…' : 'Final Submission'}
+                      </Button>
+                    </>
+                  )}
+                </div>
 
                 {hackathon.community_links?.length > 0 && (
                   <div className="mt-5 space-y-2">
@@ -490,6 +630,14 @@ export default function HackathonDetail() {
                         onChange={(e) => setLeaderForm((f) => ({ ...f, phone: e.target.value }))}
                       />
                     </Field>
+                    <Field label="Your gender" htmlFor="leaderGender">
+                      <Select id="leaderGender" required value={leaderForm.gender} onChange={(e) => setLeaderForm((f) => ({ ...f, gender: e.target.value }))}>
+                        <option value="">Select</option>
+                        {GENDER_OPTIONS.map((g) => (
+                          <option key={g}>{g}</option>
+                        ))}
+                      </Select>
+                    </Field>
                     <Field label="College" htmlFor="college">
                       <Input id="college" value={FIXED_COLLEGE} disabled readOnly />
                     </Field>
@@ -510,15 +658,22 @@ export default function HackathonDetail() {
                         2. Your teammates ({memberRows.length}/{maxMemberRows})
                       </p>
                       <p className="text-[11px] text-white/35">
-                        Just their name and phone for now — they'll fill in the rest (college year, gender, GitHub, etc.) themselves once you share their invite link.
+                        Name, email, and phone for now — they'll fill in the rest (college year, gender, GitHub, etc.)
+                        themselves once you share their invite link.
                       </p>
                       {memberRows.map((row, index) => (
                         <div key={index} className="flex items-start gap-2 rounded-lg border border-bg-border bg-white/[0.02] p-3">
-                          <div className="grid flex-1 gap-2 sm:grid-cols-2">
+                          <div className="flex-1 space-y-2">
                             <Input
                               placeholder={`Member ${index + 2} name`}
                               value={row.name}
                               onChange={(e) => updateMemberRow(index, 'name', e.target.value)}
+                            />
+                            <Input
+                              type="email"
+                              placeholder="Email address"
+                              value={row.email}
+                              onChange={(e) => updateMemberRow(index, 'email', e.target.value)}
                             />
                             <Input
                               placeholder="Mobile number"

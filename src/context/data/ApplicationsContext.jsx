@@ -266,6 +266,26 @@ export function useApplicationsModule({ addNotification, sendMail, adjustPartici
     return { success: true, application: { ...application, formData: nextFormData, members: nextMembers, member_count: nextCount } }
   }
 
+  // Marks the roster "locked in" once the leader is happy with it (the UI
+  // only shows/enables this once every teammate has confirmed and the
+  // hackathon's team-size/female-member criteria are met — this function
+  // itself just persists that decision, it doesn't re-check the criteria).
+  const finalizeApplication = async (applicationId) => {
+    const application = getApplicationById(applicationId)
+    if (!application) return { success: false, error: 'NOT_FOUND' }
+    const nextFormData = { ...application.formData, finalized: true, finalized_at: new Date().toISOString() }
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('applications').update(toDb({ formData: nextFormData })).eq('id', applicationId)
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error('finalizeApplication failed', error)
+        return { success: false, error: 'UNKNOWN' }
+      }
+    }
+    setApplications((list) => list.map((a) => (a.id === applicationId ? { ...a, formData: nextFormData } : a)))
+    return { success: true }
+  }
+
   return {
     applications,
     getApplication,
@@ -274,6 +294,7 @@ export function useApplicationsModule({ addNotification, sendMail, adjustPartici
     setApplicationStatus,
     addMemberToAcceptedApplication,
     confirmApplicationMember,
+    finalizeApplication,
   }
 }
 

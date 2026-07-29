@@ -45,7 +45,6 @@ function MobileNav({ role, onNavigate }) {
       ['/dashboard/student', 'Overview'],
       ['/dashboard/student/hackathons', 'Hackathons'],
       ['/dashboard/student/internships', 'Internships'],
-      ['/dashboard/student/teams', 'My Teams'],
       ['/dashboard/student/applications', 'Applications'],
       ['/dashboard/student/team-matcher', 'AI Team Matcher'],
       ['/dashboard/student/recommendations', 'AI Recommendations'],

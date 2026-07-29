@@ -101,6 +101,11 @@ export default function ConfirmMembership() {
           <Field label="Your name" htmlFor="name">
             <Input id="name" value={pendingMember.name} disabled readOnly />
           </Field>
+          {pendingMember.email && (
+            <Field label="Your email" htmlFor="email">
+              <Input id="email" value={pendingMember.email} disabled readOnly />
+            </Field>
+          )}
           <Field label="Your phone" htmlFor="phone">
             <Input id="phone" value={pendingMember.phone} disabled readOnly />
           </Field>
