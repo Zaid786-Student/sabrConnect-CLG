@@ -189,17 +189,16 @@ export default function HackathonDetail() {
   }
 
   // ---------- Final submission gating ----------
-  // The leader's "Submit Registration" above is just step one — teammates
-  // still need to confirm via their invite link before the roster is
-  // actually complete. Only once the team has exactly the hackathon's
-  // required size, with enough confirmed female members, does Final
-  // Submission unlock.
-  const pendingMembers = application?.formData?.pendingMembers || []
-  const confirmedMemberCount = pendingMembers.filter((m) => m.confirmed).length
-  const totalConfirmedCount = application ? 1 + confirmedMemberCount : 0 // +1 for the leader
-  const femaleCount =
-    (application && (application.formData?.gender || '').toLowerCase() === 'female' ? 1 : 0) +
-    pendingMembers.filter((m) => m.confirmed && (m.gender || '').toLowerCase() === 'female').length
+  // Teammates now actually join through the team-code system (see the
+  // "Create your team first" gate above), which lands them in
+  // myTeamForThisHackathon.members live — so that's the roster to count
+  // against, not application.formData.pendingMembers (that's a leftover
+  // invite-link list from before a real team existed, and doesn't update
+  // when someone joins by code). This is also why Final Submission wasn't
+  // updating: it was watching the wrong list.
+  const teamMembers = myTeamForThisHackathon?.members || []
+  const totalConfirmedCount = teamMembers.length
+  const femaleCount = femaleMemberCount(myTeamForThisHackathon)
   const teamSizeMet = totalConfirmedCount >= requiredTeamSize
   const femaleCountMet = femaleCount >= requiredFemaleMembers
   const rosterComplete = teamSizeMet && femaleCountMet
