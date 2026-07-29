@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, CalendarDays, MapPin, Trophy, Users2, CheckCircle2, Clock, Link2, ArrowUpRight,
-  Plus, KeyRound, X, UserRound, UserRoundX, Crown, Copy, Check, Mail, HeartHandshake, Lock,
+  Plus, KeyRound, X, UserRound, UserRoundX, Crown, Copy, Check, Mail, Lock,
 } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card } from '../../components/ui/Card'
@@ -25,16 +25,11 @@ export default function HackathonDetail() {
   const { user } = useAuth()
   const {
     hackathons, teams, getApplication, applyToOpportunity, requestToJoinTeam, cancelJoinRequest,
-    volunteerSignUp, getVolunteerSignup, finalizeApplication,
+    finalizeApplication,
   } = useData()
 
   const hackathon = hackathons.find((h) => h.id === id)
   const application = getApplication(user?.id, id)
-  const mySignup = getVolunteerSignup(user?.id, id)
-
-  // Which of the two registration paths this page is currently showing —
-  // both live on this same hackathon page, just swapping the sidebar panel.
-  const [viewAs, setViewAs] = useState('student')
 
   if (!hackathon) {
     return (
@@ -220,27 +215,6 @@ export default function HackathonDetail() {
         <ArrowLeft size={15} /> Back to Hackathons
       </button>
 
-      <div className="mb-6 flex gap-2 rounded-xl border border-bg-border bg-white/[0.02] p-1.5 sm:w-fit">
-        <button
-          type="button"
-          onClick={() => setViewAs('student')}
-          className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium transition-colors ${
-            viewAs === 'student' ? 'bg-student-soft text-student' : 'text-white/50 hover:text-white'
-          }`}
-        >
-          <Users2 size={14} /> Student — register a team
-        </button>
-        <button
-          type="button"
-          onClick={() => setViewAs('volunteer')}
-          className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium transition-colors ${
-            viewAs === 'volunteer' ? 'bg-volunteer-soft text-volunteer' : 'text-white/50 hover:text-white'
-          }`}
-        >
-          <HeartHandshake size={14} /> Volunteer for this event
-        </button>
-      </div>
-
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {hackathon.thumbnail_url && (
@@ -325,9 +299,8 @@ export default function HackathonDetail() {
             <NoticeList notices={hackathon.notices} accent="student" />
           </Card>
 
-          {viewAs === 'student' && (
-            <Card>
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <Card>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="font-display text-base font-semibold">Teams for this Hackathon</h2>
                   <p className="mt-0.5 text-xs text-white/40">Teams registered for {hackathon.title} — request to join one, or start your own.</p>
@@ -442,42 +415,11 @@ export default function HackathonDetail() {
                 )}
               </div>
             </Card>
-          )}
         </div>
 
         <div>
           <Card className="lg:sticky lg:top-24">
-            {viewAs === 'volunteer' ? (
-              mySignup?.status === 'accepted' ? (
-                <div>
-                  <div className="mb-3 flex items-center gap-2">
-                    <CheckCircle2 size={18} className="text-volunteer" />
-                    <h2 className="font-display text-base font-semibold">You're on the team</h2>
-                  </div>
-                  <p className="text-sm text-white/50">
-                    Organizers can now assign you tasks for this event from their Task Board.
-                  </p>
-                </div>
-              ) : mySignup?.status === 'pending' ? (
-                <div>
-                  <h2 className="mb-3 font-display text-base font-semibold">Request sent</h2>
-                  <p className="text-sm text-white/50">
-                    Your request to volunteer is waiting on approval from the organizing team.
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <h2 className="mb-3 font-display text-base font-semibold">Volunteer for this event</h2>
-                  <p className="mb-5 text-sm text-white/50">
-                    Sign up and the organizing team will review your request before confirming your spot — no team
-                    registration needed.
-                  </p>
-                  <Button className="w-full !bg-volunteer !text-black hover:brightness-110" onClick={() => volunteerSignUp(hackathon, user)}>
-                    Request to Volunteer
-                  </Button>
-                </div>
-              )
-            ) : application ? (
+            {application ? (
               <div>
                 <div className="mb-4 flex items-center gap-2">
                   <CheckCircle2 size={18} className="text-student" />
