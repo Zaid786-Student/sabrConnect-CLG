@@ -139,6 +139,16 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
     return opportunity?.team_size || TEAM_CAPACITY
   }
 
+  // The actual gate for "is this team full" — computed live from real
+  // capacity minus the real member count, never trusted from the stored
+  // open_slots counter. That counter is still written on every join (below)
+  // for display/back-compat, but it's just a cache: if it ever drifts (a
+  // hackathon's team_size changed after the team formed, a row was edited
+  // directly, etc.) a stale counter would otherwise let one too many people
+  // in, or wrongly block the very last open spot. This can't drift because
+  // it's derived fresh from team.members every time.
+  const remainingSlots = (team) => capacityForOpportunity(team.opportunity_id, team.opportunity_type) - team.members.length
+
   const createTeam = async (data, creator) => {
     const leaderEmail = (data.leaderEmail || creator?.email || '').trim()
     if (isEmailAlreadyRegistered(leaderEmail)) {
@@ -294,7 +304,7 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
     if (hasConflictingOpportunityTeam(memberId, team.opportunity_id)) {
       return { success: false, error: 'ALREADY_REGISTERED' }
     }
-    if ((team.openSlots ?? 0) <= 0) return { success: false, error: 'TEAM_FULL' }
+    if (remainingSlots(team) <= 0) return { success: false, error: 'TEAM_FULL' }
 
     const newMember = {
       id: memberId,
@@ -349,7 +359,7 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
 
   const joinTeam = async (teamId, member) => {
     const team = getTeam(teamId)
-    if (!team || team.members.some((m) => m.id === member.id) || team.openSlots <= 0) return
+    if (!team || team.members.some((m) => m.id === member.id) || remainingSlots(team) <= 0) return
     if (isSupabaseConfigured) {
       await supabase.from('team_members').insert({ team_id: teamId, user_id: member.id, name: member.full_name || member.name, is_leader: false })
       await supabase.from('teams').update({ open_slots: Math.max(0, team.openSlots - 1) }).eq('id', teamId)
@@ -452,7 +462,7 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
     if ((team.joinRequests || []).some((r) => r.user_id === applicant?.id && r.status === 'pending')) {
       return { success: false, error: 'ALREADY_REQUESTED' }
     }
-    if ((team.openSlots ?? 0) <= 0) return { success: false, error: 'TEAM_FULL' }
+    if (remainingSlots(team) <= 0) return { success: false, error: 'TEAM_FULL' }
     if (hasConflictingOpportunityTeam(applicant?.id, team.opportunity_id)) {
       return { success: false, error: 'ALREADY_REGISTERED' }
     }
@@ -534,7 +544,7 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
       return
     }
 
-    if (team.openSlots <= 0) {
+    if (remainingSlots(team) <= 0) {
       if (isSupabaseConfigured) {
         await supabase.from('team_join_requests').update({ status: 'rejected' }).eq('id', requestId)
       } else {

@@ -14,7 +14,7 @@ const CREATE_ERROR_MESSAGES = {
 
 const JOIN_ERROR_MESSAGES = {
   INVALID_CODE: "No team found with that code — double-check and try again.",
-  TEAM_FULL: `This team already has its ${TEAM_CAPACITY} members.`,
+  TEAM_FULL: 'This team is already full — ask the leader if any spots free up.',
   ALREADY_REGISTERED: 'This email is already registered with a team.',
   ALREADY_MEMBER: "You're already a member of this team.",
   UNKNOWN: 'Something went wrong. Please try again.',
@@ -30,6 +30,7 @@ export default function TeamRegistrationPanel({ opportunity = null, defaultTab =
   const { createTeam, joinTeamByCode } = useData()
 
   const [activeForm, setActiveForm] = useState(defaultTab) // 'create' | 'join'
+  const teamCapacity = opportunity?.team_size || TEAM_CAPACITY
 
   // ---------- Create Team ----------
   const [createForm, setCreateForm] = useState(() => ({
@@ -371,7 +372,7 @@ export default function TeamRegistrationPanel({ opportunity = null, defaultTab =
             </Field>
 
             <p className="text-xs text-white/35 sm:col-span-2">
-              Team size is fixed at {TEAM_CAPACITY} members (including you as leader) — {TEAM_CAPACITY - 1} open slots
+              Team size is fixed at {teamCapacity} members (including you as leader) — {teamCapacity - 1} open slots
               for teammates to join with your team code.
               {opportunity?.title && (
                 <>
