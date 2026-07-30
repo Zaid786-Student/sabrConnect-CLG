@@ -17,7 +17,7 @@ import JoinRequestRow from '../../components/teams/JoinRequestRow'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { usePresence, useTyping } from '../../lib/presence'
-import { DEV_ROLES, HACKATHON_INTERESTS, TEAM_LOGO_OPTIONS, formatDate, splitTags, initials } from '../../lib/utils'
+import { DEV_ROLES, HACKATHON_INTERESTS, TEAM_LOGO_OPTIONS, TEAM_CAPACITY, formatDate, splitTags, initials } from '../../lib/utils'
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024 // 2MB — demo-safe size for localStorage-backed file sharing
 
@@ -90,6 +90,17 @@ export default function TeamWorkspace() {
   const projectUnlocked = Boolean(hackathonId || internshipId)
   const baseTabs = TABS.filter((t) => !t.leaderOnly || isLeader)
   const pendingRequestCount = (team.joinRequests || []).filter((r) => r.status === 'pending').length
+
+  // "Open positions" is derived live from the team's actual capacity minus
+  // its current roster, rather than trusted from team.openSlots — that
+  // field is also directly overwritable via the "Edit" form below, so it
+  // could silently drift from reality (e.g. saving any other profile edit
+  // would resubmit whatever stale number was in the form, undoing joins
+  // that happened in the meantime). Capacity comes from the hackathon's own
+  // team_size when this team is tied to one, falling back to the app-wide
+  // default otherwise.
+  const teamCapacity = (hackathonId && hackathons.find((h) => h.id === hackathonId)?.team_size) || TEAM_CAPACITY
+  const openPositions = Math.max(0, teamCapacity - team.members.length)
 
   // The back link points wherever this team is actually registered — the
   // hackathon detail page for a hackathon team, the internship detail page
@@ -204,7 +215,6 @@ function OverviewTab({ team, user, isMember, isLeader, updateTeamProfile, addTea
     comm_link: team.comm_link || '',
     interests: team.interests || [],
     rolesNeeded: team.rolesNeeded || [],
-    openSlots: team.openSlots ?? 0,
   })
 
   const toggleInterest = (tag) =>
@@ -214,7 +224,7 @@ function OverviewTab({ team, user, isMember, isLeader, updateTeamProfile, addTea
 
   const saveProfile = (e) => {
     e.preventDefault()
-    updateTeamProfile(team.id, { ...form, openSlots: Number(form.openSlots) || 0 })
+    updateTeamProfile(team.id, form)
     setEditing(false)
   }
 
@@ -262,9 +272,6 @@ function OverviewTab({ team, user, isMember, isLeader, updateTeamProfile, addTea
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Project name" htmlFor="edit-project">
                 <Input id="edit-project" value={form.project_name} onChange={(e) => setForm((f) => ({ ...f, project_name: e.target.value }))} />
-              </Field>
-              <Field label="Open positions" htmlFor="edit-slots">
-                <Input id="edit-slots" type="number" min="0" max="10" value={form.openSlots} onChange={(e) => setForm((f) => ({ ...f, openSlots: e.target.value }))} />
               </Field>
             </div>
             <Field label="Communication link" htmlFor="edit-comm">
@@ -319,7 +326,7 @@ function OverviewTab({ team, user, isMember, isLeader, updateTeamProfile, addTea
 
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <MiniStat label="Members" value={team.members.length} />
-              <MiniStat label="Open positions" value={team.openSlots} />
+              <MiniStat label="Open positions" value={openPositions} />
               <MiniStat label="Leader" value={team.leader_name?.split(' ')[0] || '—'} />
               <MiniStat label="Achievements" value={team.achievements?.length || 0} />
             </div>
