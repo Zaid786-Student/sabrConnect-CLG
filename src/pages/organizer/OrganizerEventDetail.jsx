@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { ArrowLeft, Check, X, Users2, ClipboardCheck, Megaphone, Lock, Eye, XCircle } from 'lucide-react'
+import { ArrowLeft, Check, X, Users2, ClipboardCheck, Megaphone, Lock, Eye, XCircle, Download } from 'lucide-react'
+import { jsPDF } from 'jspdf'
+import { autoTable } from 'jspdf-autotable'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card, StatCard } from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -86,9 +88,94 @@ export default function OrganizerEventDetail() {
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'participants', label: `Participants (${eventApplications.length})` },
+    { key: 'details', label: 'Details' },
     { key: 'judging', label: `Judging (${eventSubmissions.length})` },
     { key: 'notices', label: `Notices (${event.notices?.length || 0})` },
   ]
+
+  // Shared by the Participants "Details" modal, the Details tab, and the PDF
+  // export — one team/applicant's member roster, leader always listed
+  // first, pulled from the live team record so profiles are always current.
+  const membersFor = (application) => {
+    const team = application.team_id ? teams.find((t) => t.id === application.team_id) : null
+    const members = team
+      ? [...team.members].sort((x, y) => (y.isLeader ? 1 : 0) - (x.isLeader ? 1 : 0))
+      : [{
+          id: application.user_id,
+          name: application.user_name,
+          email: application.user_email,
+          contact: '',
+          role: '',
+          skills: [],
+          isLeader: true,
+        }]
+    return { team, members }
+  }
+
+  const downloadParticipantsPdf = () => {
+    const doc = new jsPDF()
+    const marginX = 14
+    let cursorY = 20
+
+    doc.setFontSize(16)
+    doc.text(event.title || 'Event', marginX, cursorY)
+    cursorY += 6
+    doc.setFontSize(10)
+    doc.setTextColor(130)
+    doc.text(
+      `${isHackathon ? 'Hackathon' : 'Internship'} · ${eventApplications.length} application${eventApplications.length === 1 ? '' : 's'} · Generated ${new Date().toLocaleDateString()}`,
+      marginX,
+      cursorY,
+    )
+    doc.setTextColor(0)
+    cursorY += 8
+
+    if (eventApplications.length === 0) {
+      doc.setFontSize(11)
+      doc.text('No applications for this event yet.', marginX, cursorY)
+    }
+
+    eventApplications.forEach((a) => {
+      const { team, members } = membersFor(a)
+
+      if (cursorY > 260) {
+        doc.addPage()
+        cursorY = 20
+      }
+
+      doc.setFontSize(12)
+      doc.setFont(undefined, 'bold')
+      doc.text(a.team_id ? a.team_name || 'Team' : a.user_name || 'Applicant', marginX, cursorY)
+      doc.setFont(undefined, 'normal')
+      cursorY += 5
+      doc.setFontSize(9)
+      doc.setTextColor(130)
+      doc.text(`Status: ${a.status.replace('_', ' ')}`, marginX, cursorY)
+      doc.setTextColor(0)
+      cursorY += 3
+
+      autoTable(doc, {
+        startY: cursorY,
+        margin: { left: marginX, right: marginX },
+        head: [['Member', 'Name', 'Email', 'Contact', 'Role / Skills']],
+        body: members.map((m, i) => [
+          team ? `Member ${i + 1}${m.isLeader ? ' (Leader)' : ''}` : 'Applicant',
+          m.name || '—',
+          m.email || '—',
+          m.contact || '—',
+          [m.role, ...(m.skills?.length ? [m.skills.join(', ')] : [])].filter(Boolean).join(' · ') || '—',
+        ]),
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [30, 30, 35] },
+        theme: 'grid',
+      })
+
+      cursorY = doc.lastAutoTable.finalY + 10
+    })
+
+    const safeTitle = (event.title || 'event').replace(/[^a-z0-9]+/gi, '_').toLowerCase()
+    doc.save(`${safeTitle}_participants.pdf`)
+  }
 
   return (
     <DashboardShell role="organizer" title={event.title} subtitle="Your event environment — visible only to you.">
@@ -284,6 +371,42 @@ export default function OrganizerEventDetail() {
         </div>
       )}
 
+      {tab === 'details' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-white/40">
+              Full roster for every application to this event — {eventApplications.length} total.
+            </p>
+            <Button variant="outline" className="text-xs" onClick={downloadParticipantsPdf}>
+              <Download size={14} /> Download as PDF
+            </Button>
+          </div>
+
+          {eventApplications.map((a) => {
+            const { team, members } = membersFor(a)
+            return (
+              <Card key={a.id}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-display text-base font-bold">
+                    {a.team_id ? a.team_name || 'Team' : a.user_name || 'Applicant'}
+                  </h3>
+                  <Badge variant={appStatusVariant[a.status]} className="capitalize">
+                    {a.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+                <div className="mt-4 overflow-x-auto">
+                  <MembersTable team={team} members={members} />
+                </div>
+              </Card>
+            )
+          })}
+
+          {eventApplications.length === 0 && (
+            <Card className="text-center text-sm text-white/30">No applications for this event yet.</Card>
+          )}
+        </div>
+      )}
+
       {detailsFor && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -299,18 +422,7 @@ export default function OrganizerEventDetail() {
                 <XCircle size={20} />
               </button>
               {(() => {
-                const team = detailsFor.team_id ? teams.find((t) => t.id === detailsFor.team_id) : null
-                const members = team
-                  ? [...team.members].sort((x, y) => (y.isLeader ? 1 : 0) - (x.isLeader ? 1 : 0))
-                  : [{
-                      id: detailsFor.user_id,
-                      name: detailsFor.user_name,
-                      email: detailsFor.user_email,
-                      contact: '',
-                      role: '',
-                      skills: [],
-                      isLeader: true,
-                    }]
+                const { team, members } = membersFor(detailsFor)
 
                 return (
                   <>
@@ -320,32 +432,7 @@ export default function OrganizerEventDetail() {
                     <p className="mt-1 text-xs text-white/40">{detailsFor.title}</p>
 
                     <div className="mt-5 overflow-x-auto">
-                      <table className="w-full min-w-[560px] text-left text-sm">
-                        <thead>
-                          <tr className="border-b border-bg-border text-xs uppercase tracking-wide text-white/35">
-                            <th className="py-2.5 pr-4 font-medium">Member</th>
-                            <th className="py-2.5 pr-4 font-medium">Name</th>
-                            <th className="py-2.5 pr-4 font-medium">Email</th>
-                            <th className="py-2.5 pr-4 font-medium">Contact</th>
-                            <th className="py-2.5 font-medium">Role / Skills</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {members.map((m, i) => (
-                            <tr key={m.id || i} className="border-b border-bg-border last:border-0 align-top">
-                              <td className="py-3 pr-4 whitespace-nowrap text-white/50">
-                                {team ? `Member ${i + 1}${m.isLeader ? ' (Leader)' : ''}` : 'Applicant'}
-                              </td>
-                              <td className="py-3 pr-4 font-medium">{m.name || '—'}</td>
-                              <td className="py-3 pr-4 text-white/60">{m.email || '—'}</td>
-                              <td className="py-3 pr-4 text-white/60">{m.contact || '—'}</td>
-                              <td className="py-3 text-white/60">
-                                {[m.role, ...(m.skills?.length ? [m.skills.join(', ')] : [])].filter(Boolean).join(' · ') || '—'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      <MembersTable team={team} members={members} />
                     </div>
 
                     {!team && detailsFor.team_id && (
@@ -361,5 +448,38 @@ export default function OrganizerEventDetail() {
         </div>
       )}
     </DashboardShell>
+  )
+}
+
+// Renders one applicant/team's member roster — shared by the Participants
+// "Details" modal and the Details tab so the two never drift apart.
+function MembersTable({ team, members }) {
+  return (
+    <table className="w-full min-w-[560px] text-left text-sm">
+      <thead>
+        <tr className="border-b border-bg-border text-xs uppercase tracking-wide text-white/35">
+          <th className="py-2.5 pr-4 font-medium">Member</th>
+          <th className="py-2.5 pr-4 font-medium">Name</th>
+          <th className="py-2.5 pr-4 font-medium">Email</th>
+          <th className="py-2.5 pr-4 font-medium">Contact</th>
+          <th className="py-2.5 font-medium">Role / Skills</th>
+        </tr>
+      </thead>
+      <tbody>
+        {members.map((m, i) => (
+          <tr key={m.id || i} className="border-b border-bg-border last:border-0 align-top">
+            <td className="py-3 pr-4 whitespace-nowrap text-white/50">
+              {team ? `Member ${i + 1}${m.isLeader ? ' (Leader)' : ''}` : 'Applicant'}
+            </td>
+            <td className="py-3 pr-4 font-medium">{m.name || '—'}</td>
+            <td className="py-3 pr-4 text-white/60">{m.email || '—'}</td>
+            <td className="py-3 pr-4 text-white/60">{m.contact || '—'}</td>
+            <td className="py-3 text-white/60">
+              {[m.role, ...(m.skills?.length ? [m.skills.join(', ')] : [])].filter(Boolean).join(' · ') || '—'}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }
