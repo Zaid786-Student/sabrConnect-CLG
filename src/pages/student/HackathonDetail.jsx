@@ -432,7 +432,7 @@ export default function HackathonDetail() {
                   <p><span className="text-white/30">Problem statement 2:</span> {application.formData?.problemStatement2 || '—'}</p>
                 </div>
 
-                {application.formData?.pendingMembers?.length > 0 && (
+                {!isFinalized && application.formData?.pendingMembers?.length > 0 && (
                   <div className="mt-5">
                     <p className="mb-2 text-xs font-medium text-white/60">Teammates ({application.formData.pendingMembers.length})</p>
                     <p className="mb-3 text-[11px] text-white/35">
