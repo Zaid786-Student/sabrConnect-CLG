@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { ArrowLeft, Check, X, Users2, ClipboardCheck, Megaphone, Lock } from 'lucide-react'
+import { ArrowLeft, Check, X, Users2, ClipboardCheck, Megaphone, Lock, Eye, XCircle } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card, StatCard } from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -36,6 +36,7 @@ export default function OrganizerEventDetail() {
   const [searchParams] = useSearchParams()
   const [tab, setTab] = useState(searchParams.get('tab') || 'overview')
   const [noticeForm, setNoticeForm] = useState({ title: '', content: '' })
+  const [detailsFor, setDetailsFor] = useState(null) // application whose full team details modal is open
 
   const isHackathon = kind === 'hackathon'
   const event = isHackathon ? hackathons.find((h) => h.id === id) : internships.find((i) => i.id === id)
@@ -199,26 +200,34 @@ export default function OrganizerEventDetail() {
                     </Badge>
                   </td>
                   <td className="px-6 py-4">
-                    {a.status === 'submitted' || a.status === 'in_review' ? (
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => setApplicationStatus(a.id, 'accepted')}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-student/30 bg-student-soft text-student hover:brightness-110"
-                          aria-label="Accept"
-                        >
-                          <Check size={14} />
-                        </button>
-                        <button
-                          onClick={() => setApplicationStatus(a.id, 'rejected')}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-bg-border text-white/40 hover:text-red-400"
-                          aria-label="Reject"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-right text-xs text-white/25">Decision final</p>
-                    )}
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => setDetailsFor(a)}
+                        className="flex h-8 items-center gap-1.5 rounded-lg border border-bg-border px-3 text-xs font-medium text-white/60 hover:border-white/30 hover:text-white"
+                      >
+                        <Eye size={13} /> Details
+                      </button>
+                      {a.status === 'submitted' || a.status === 'in_review' ? (
+                        <>
+                          <button
+                            onClick={() => setApplicationStatus(a.id, 'accepted')}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-student/30 bg-student-soft text-student hover:brightness-110"
+                            aria-label="Accept"
+                          >
+                            <Check size={14} />
+                          </button>
+                          <button
+                            onClick={() => setApplicationStatus(a.id, 'rejected')}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-bg-border text-white/40 hover:text-red-400"
+                            aria-label="Reject"
+                          >
+                            <X size={14} />
+                          </button>
+                        </>
+                      ) : (
+                        <p className="text-xs text-white/25">Decision final</p>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -272,6 +281,83 @@ export default function OrganizerEventDetail() {
             <h2 className="mb-4 font-display text-base font-semibold">Past Notices</h2>
             <NoticeList notices={event.notices} accent="organizer" />
           </Card>
+        </div>
+      )}
+
+      {detailsFor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setDetailsFor(null)}
+        >
+          <div className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+            <Card className="relative max-h-[85vh] overflow-y-auto">
+              <button
+                className="absolute right-4 top-4 text-white/40 hover:text-white"
+                onClick={() => setDetailsFor(null)}
+                aria-label="Close"
+              >
+                <XCircle size={20} />
+              </button>
+              {(() => {
+                const team = detailsFor.team_id ? teams.find((t) => t.id === detailsFor.team_id) : null
+                const members = team
+                  ? [...team.members].sort((x, y) => (y.isLeader ? 1 : 0) - (x.isLeader ? 1 : 0))
+                  : [{
+                      id: detailsFor.user_id,
+                      name: detailsFor.user_name,
+                      email: detailsFor.user_email,
+                      contact: '',
+                      role: '',
+                      skills: [],
+                      isLeader: true,
+                    }]
+
+                return (
+                  <>
+                    <h2 className="pr-8 font-display text-lg font-semibold">
+                      {detailsFor.team_id ? detailsFor.team_name || 'Team' : detailsFor.user_name || 'Applicant'}
+                    </h2>
+                    <p className="mt-1 text-xs text-white/40">{detailsFor.title}</p>
+
+                    <div className="mt-5 overflow-x-auto">
+                      <table className="w-full min-w-[560px] text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-bg-border text-xs uppercase tracking-wide text-white/35">
+                            <th className="py-2.5 pr-4 font-medium">Member</th>
+                            <th className="py-2.5 pr-4 font-medium">Name</th>
+                            <th className="py-2.5 pr-4 font-medium">Email</th>
+                            <th className="py-2.5 pr-4 font-medium">Contact</th>
+                            <th className="py-2.5 font-medium">Role / Skills</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {members.map((m, i) => (
+                            <tr key={m.id || i} className="border-b border-bg-border last:border-0 align-top">
+                              <td className="py-3 pr-4 whitespace-nowrap text-white/50">
+                                {team ? `Member ${i + 1}${m.isLeader ? ' (Leader)' : ''}` : 'Applicant'}
+                              </td>
+                              <td className="py-3 pr-4 font-medium">{m.name || '—'}</td>
+                              <td className="py-3 pr-4 text-white/60">{m.email || '—'}</td>
+                              <td className="py-3 pr-4 text-white/60">{m.contact || '—'}</td>
+                              <td className="py-3 text-white/60">
+                                {[m.role, ...(m.skills?.length ? [m.skills.join(', ')] : [])].filter(Boolean).join(' · ') || '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {!team && detailsFor.team_id && (
+                      <p className="mt-4 text-xs text-white/30">
+                        This team's full member profiles are no longer available.
+                      </p>
+                    )}
+                  </>
+                )
+              })()}
+            </Card>
+          </div>
         </div>
       )}
     </DashboardShell>
