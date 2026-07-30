@@ -52,7 +52,7 @@ export function useVolunteerModule({ addNotification, sendMail, getHackathon }) 
           title: 'Volunteer task completed',
           message: `"${task.title}" was marked complete for ${hackathon.title}.`,
           role: 'organizer',
-          link: '/dashboard/organizer/volunteers',
+          link: '/dashboard/organizer/events',
         })
       }
     }
@@ -123,7 +123,7 @@ export function useVolunteerModule({ addNotification, sendMail, getHackathon }) 
       title: 'New volunteer request',
       message: `${volunteer?.full_name || 'A volunteer'} asked to volunteer for ${hackathon.title}.`,
       role: 'organizer',
-      link: '/dashboard/organizer/volunteers',
+      link: '/dashboard/organizer/events',
     })
     return signup
   }

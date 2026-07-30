@@ -57,7 +57,7 @@ export default function OrganizerDashboard() {
         <button className="text-left" onClick={() => navigate('/dashboard/organizer/events')}>
           <StatCard label="Total Participants" value={totalParticipants} icon={Users} accent="student" />
         </button>
-        <button className="text-left" onClick={() => navigate('/dashboard/organizer/approvals')}>
+        <button className="text-left" onClick={() => navigate('/dashboard/organizer/participants')}>
           <StatCard label="Pending Requests" value={pendingRequests} icon={ClipboardCheck} accent="volunteer" />
         </button>
       </div>

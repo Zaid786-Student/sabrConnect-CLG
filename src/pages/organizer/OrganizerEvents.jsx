@@ -20,7 +20,7 @@ const emptyIntForm = { title: '', company: '', description: '', deadline: '', lo
 
 export default function OrganizerEvents() {
   const { user } = useAuth()
-  const { hackathons, internships, addHackathon, addInternship, addHackathonNotice, addInternshipNotice } = useData()
+  const { hackathons, internships, applications, addHackathon, addInternship, addHackathonNotice, addInternshipNotice } = useData()
   const [showForm, setShowForm] = useState(false)
   const [type, setType] = useState('hackathon')
   const [hackForm, setHackForm] = useState(emptyHackForm)
@@ -126,7 +126,14 @@ export default function OrganizerEvents() {
     ...hackathons.map((h) => ({ ...h, kind: 'hackathon' })),
     ...internships.map((i) => ({ ...i, kind: 'internship', start_date: i.deadline })),
   ]
-    .map((e) => ({ ...e, isOwn: e.organizer_id === user?.id }))
+    .map((e) => ({
+      ...e,
+      isOwn: e.organizer_id === user?.id,
+      // Accepted count is derived live from applications every render, so it
+      // can never drift out of sync the way a stored counter can — this is
+      // also what "Accepted Participants" on the event detail page uses.
+      acceptedCount: applications.filter((a) => a.opportunity_id === e.id && a.status === 'accepted').length,
+    }))
     .sort((a, b) => new Date(b.start_date || 0) - new Date(a.start_date || 0))
 
   return (
@@ -370,7 +377,7 @@ export default function OrganizerEvents() {
               <span className="flex items-center gap-1.5"><CalendarDays size={13} /> {formatDate(e.kind === 'hackathon' ? e.start_date : e.deadline)}</span>
               {e.location && <span className="flex items-center gap-1.5"><MapPin size={13} /> {e.location}</span>}
               {e.stipend && <span className="flex items-center gap-1.5"><Wallet size={13} /> {e.stipend}</span>}
-              <span className="flex items-center gap-1"><Users2 size={12} /> {e.participants || 0} participants</span>
+              <span className="flex items-center gap-1"><Users2 size={12} /> {e.acceptedCount} {e.kind === 'hackathon' ? `team${e.acceptedCount === 1 ? '' : 's'}` : `participant${e.acceptedCount === 1 ? '' : 's'}`}</span>
             </div>
             {e.kind === 'hackathon' && (e.team_size || e.min_female_members) && (
               <div className="mt-2 flex flex-wrap gap-1.5">

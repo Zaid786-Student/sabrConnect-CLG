@@ -37,7 +37,6 @@ import OrganizerEventDetail from './pages/organizer/OrganizerEventDetail'
 import Participants from './pages/organizer/Participants'
 import OrganizerAnnouncements from './pages/organizer/OrganizerAnnouncements'
 import Analytics from './pages/organizer/Analytics'
-import Approvals from './pages/organizer/Approvals'
 import OrganizerOpportunityFeed from './pages/organizer/OpportunityFeed'
 
 import ProfileSettings from './pages/ProfileSettings'
@@ -86,7 +85,6 @@ export default function App() {
         <Route path="events" element={<OrganizerEvents />} />
         <Route path="events/:kind/:id" element={<OrganizerEventDetail />} />
         <Route path="participants" element={<Participants />} />
-        <Route path="approvals" element={<Approvals />} />
         <Route path="announcements" element={<OrganizerAnnouncements />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="feed" element={<OrganizerOpportunityFeed />} />

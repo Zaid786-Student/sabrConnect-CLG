@@ -64,8 +64,6 @@ function MobileNav({ role, onNavigate }) {
       ['/dashboard/organizer', 'Overview'],
       ['/dashboard/organizer/events', 'Events'],
       ['/dashboard/organizer/participants', 'Participants'],
-      ['/dashboard/organizer/volunteers', 'Volunteers'],
-      ['/dashboard/organizer/approvals', 'Approvals'],
       ['/dashboard/organizer/announcements', 'Announcements'],
       ['/dashboard/organizer/analytics', 'Analytics'],
       ['/dashboard/organizer/feed', 'Opportunity Feed'],

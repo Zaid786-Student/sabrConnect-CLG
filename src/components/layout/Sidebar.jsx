@@ -15,7 +15,6 @@ import {
   Rss,
   Sparkles,
   Target,
-  UserCheck,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -43,7 +42,6 @@ const navByRole = {
     { to: '/dashboard/organizer', label: 'Overview', icon: LayoutGrid, end: true },
     { to: '/dashboard/organizer/events', label: 'Events', icon: Trophy },
     { to: '/dashboard/organizer/participants', label: 'Participants', icon: Users },
-    { to: '/dashboard/organizer/approvals', label: 'Approvals', icon: UserCheck },
     { to: '/dashboard/organizer/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/dashboard/organizer/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/dashboard/organizer/feed', label: 'Opportunity Feed', icon: Rss },
