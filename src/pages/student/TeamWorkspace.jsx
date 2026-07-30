@@ -151,6 +151,7 @@ export default function TeamWorkspace() {
           isLeader={isLeader}
           updateTeamProfile={updateTeamProfile}
           addTeamAchievement={addTeamAchievement}
+          openPositions={openPositions}
         />
       )}
 
@@ -196,7 +197,7 @@ export default function TeamWorkspace() {
 }
 
 // ---------------------------------------------------------------------------
-function OverviewTab({ team, user, isMember, isLeader, updateTeamProfile, addTeamAchievement }) {
+function OverviewTab({ team, user, isMember, isLeader, updateTeamProfile, addTeamAchievement, openPositions }) {
   const [editing, setEditing] = useState(false)
   const [achieveForm, setAchieveForm] = useState('')
   const [codeCopied, setCodeCopied] = useState(false)
