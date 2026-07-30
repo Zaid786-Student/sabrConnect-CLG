@@ -109,10 +109,13 @@ export function useNotificationsModule() {
 
   // ---------- Mail (simulated) ----------
   // Stands in for a real email provider. In Supabase mode this logs to the
-  // `mail_log` table (visible to any signed-in user, e.g. for a support/admin
-  // view); swap this for a Supabase Edge Function calling Resend/SendGrid
-  // when real delivery is needed — no other code in the app depends on the
-  // send actually reaching an inbox.
+  // Writes to the mail_log table either way (visible to any signed-in user,
+  // e.g. for a support/admin view) AND, when Supabase is configured, also
+  // invokes the send-mail Edge Function to actually deliver real email via
+  // Resend. If that function isn't deployed yet, or RESEND_API_KEY hasn't
+  // been set as a secret, it just fails quietly here and the mail_log row
+  // above is still the record of what "was sent" — see
+  // supabase/functions/send-mail/index.ts for one-time setup instructions.
   const sendMail = async ({ to, toName, subject, body }) => {
     const mail = { id: uid('mail'), to, toName, subject, body, sent_at: new Date().toISOString() }
     if (isSupabaseConfigured) {
@@ -122,6 +125,18 @@ export function useNotificationsModule() {
       if (error) {
         // eslint-disable-next-line no-console
         console.error('sendMail failed', error)
+      }
+      try {
+        const { error: fnError } = await supabase.functions.invoke('send-mail', {
+          body: { to, toName, subject, body },
+        })
+        if (fnError) {
+          // eslint-disable-next-line no-console
+          console.warn('Real email delivery not sent (send-mail function not set up yet?)', fnError)
+        }
+      } catch (fnErr) {
+        // eslint-disable-next-line no-console
+        console.warn('Real email delivery not sent (send-mail function not set up yet?)', fnErr)
       }
     } else {
       setMailLog((list) => [mail, ...list])
