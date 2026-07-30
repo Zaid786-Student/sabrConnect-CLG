@@ -183,10 +183,9 @@ export default function OrganizerEventDetail() {
                       <div>
                         <p className="flex items-center gap-1.5">
                           <Users2 size={13} className="text-organizer" /> {a.team_name || 'Team'}
-                          <span className="font-normal text-white/40">· {a.member_count} member{a.member_count === 1 ? '' : 's'}</span>
                         </p>
                         <p className="mt-1 text-xs font-normal text-white/40">
-                          {(a.members || []).map((m) => m.name).filter(Boolean).join(', ')}
+                          Leader: {a.user_name || 'Unknown'}
                         </p>
                       </div>
                     ) : (
