@@ -55,13 +55,22 @@ export function useApplicationsModule({ addNotification, sendMail, adjustPartici
   // team in one go. The application is still owned by the submitting user
   // (normally the team leader), but carries the full member roster so the
   // organizer can see and approve it as a unit.
-  const applyToOpportunity = async ({ type, opportunity, user, formData, team, notifyApplicant = false }) => {
+  const applyToOpportunity = async ({
+    type,
+    opportunity,
+    user,
+    formData,
+    team,
+    notifyApplicant = false,
+    notifyOrganizer = true,
+    status = 'submitted',
+  }) => {
     const existing = getApplication(user?.id, opportunity.id)
     if (existing) return existing
 
     const members = team?.members?.length
-      ? team.members.map((m) => ({ id: m.id, name: m.name }))
-      : [{ id: user?.id, name: user?.full_name }]
+      ? team.members.map((m) => ({ id: m.id, name: m.name, email: m.email }))
+      : [{ id: user?.id, name: user?.full_name, email: user?.email }]
 
     const draft = {
       user_id: user?.id,
@@ -71,7 +80,7 @@ export function useApplicationsModule({ addNotification, sendMail, adjustPartici
       opportunity_id: opportunity.id,
       opportunity_type: type,
       title: opportunity.title,
-      status: 'submitted',
+      status,
       formData,
       team_id: team?.id || null,
       team_name: team?.team_name || null,
@@ -94,14 +103,16 @@ export function useApplicationsModule({ addNotification, sendMail, adjustPartici
       setApplications((list) => [application, ...list])
     }
 
-    addNotification(opportunity.organizer_id, {
-      title: 'New application received',
-      message: team
-        ? `${team.team_name} (${members.length} members) applied to ${opportunity.title}.`
-        : `${user?.full_name || 'A student'} applied to ${opportunity.title}.`,
-      role: 'organizer',
-      link: '/dashboard/organizer/participants',
-    })
+    if (notifyOrganizer) {
+      addNotification(opportunity.organizer_id, {
+        title: 'New application received',
+        message: team
+          ? `${team.team_name} (${members.length} members) applied to ${opportunity.title}.`
+          : `${user?.full_name || 'A student'} applied to ${opportunity.title}.`,
+        role: 'organizer',
+        link: '/dashboard/organizer/participants',
+      })
+    }
 
     // Used by the "leader registers, teammates confirm via link" flow — the
     // leader gets an immediate mail + in-app confirmation that their
@@ -268,21 +279,67 @@ export function useApplicationsModule({ addNotification, sendMail, adjustPartici
 
   // Marks the roster "locked in" once the leader is happy with it (the UI
   // only shows/enables this once every teammate has confirmed and the
-  // hackathon's team-size/female-member criteria are met — this function
-  // itself just persists that decision, it doesn't re-check the criteria).
-  const finalizeApplication = async (applicationId) => {
+  // hackathon's team-size/female-member criteria are met). This is also the
+  // ONLY point the organizer is actually notified — creating the team, and
+  // the leader filling in the registration form, both stay silent (see
+  // notifyOrganizer: false / status: 'draft' in HackathonDetail.jsx) so a
+  // half-formed roster never shows up in the organizer's request queue.
+  const finalizeApplication = async (applicationId, { team } = {}) => {
     const application = getApplicationById(applicationId)
     if (!application) return { success: false, error: 'NOT_FOUND' }
+
     const nextFormData = { ...application.formData, finalized: true, finalized_at: new Date().toISOString() }
+    const nextMembers = team?.members?.length
+      ? team.members.map((m) => ({ id: m.id, name: m.name, email: m.email }))
+      : application.members
+    const nextCount = nextMembers?.length || application.member_count
+    const patch = { formData: nextFormData, status: 'submitted', members: nextMembers, member_count: nextCount }
+
     if (isSupabaseConfigured) {
-      const { error } = await supabase.from('applications').update(toDb({ formData: nextFormData })).eq('id', applicationId)
+      const { error } = await supabase.from('applications').update(toDb(patch)).eq('id', applicationId)
       if (error) {
         // eslint-disable-next-line no-console
         console.error('finalizeApplication failed', error)
         return { success: false, error: 'UNKNOWN' }
       }
     }
-    setApplications((list) => list.map((a) => (a.id === applicationId ? { ...a, formData: nextFormData } : a)))
+    setApplications((list) => list.map((a) => (a.id === applicationId ? { ...a, ...patch } : a)))
+
+    if (application.organizer_id) {
+      addNotification(application.organizer_id, {
+        title: 'New application received',
+        message: team
+          ? `${team.team_name} (${nextCount} members) submitted their final roster for ${application.title}.`
+          : `${application.user_name || 'A student'} submitted their final application for ${application.title}.`,
+        role: 'organizer',
+        link: '/dashboard/organizer/participants',
+      })
+    }
+
+    // Every teammate — not just the leader — gets a confirmation, by email
+    // and in-app.
+    const recipients = nextMembers?.length
+      ? nextMembers
+      : [{ id: application.user_id, name: application.user_name, email: application.user_email }]
+    recipients.forEach((m) => {
+      if (m.id) {
+        addNotification(m.id, {
+          title: 'Team registered 🎉',
+          message: `Your team is registered for ${application.title}. Congrats!`,
+          role: 'student',
+          link: '/dashboard/student/applications',
+        })
+      }
+      if (m.email) {
+        sendMail({
+          to: m.email,
+          toName: m.name,
+          subject: `You're registered for ${application.title}`,
+          body: `Hi ${m.name || 'there'},\n\nCongrats — your team has been successfully registered for ${application.title}. We'll notify you as soon as the organizing team reviews your submission.\n\n— SabrConnect`,
+        })
+      }
+    })
+
     return { success: true }
   }
 

@@ -268,17 +268,6 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
       setTeams((list) => [team, ...list])
     }
 
-    // A team created with a hackathon or internship already linked registers
-    // against it immediately, exactly like using "Apply" from the opportunity
-    // page — works the same way for either opportunity type.
-    if (data.opportunity_id && applyToOpportunity) {
-      const opportunityType = data.opportunity_type || 'hackathon'
-      const opportunity =
-        opportunityType === 'internship' ? getInternship?.(data.opportunity_id) : getHackathon?.(data.opportunity_id)
-      if (opportunity) {
-        await applyToOpportunity({ type: opportunityType, opportunity, user: creator, formData: {}, team })
-      }
-    }
     return { success: true, team }
   }
 

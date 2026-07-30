@@ -7,8 +7,8 @@ import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { formatDate } from '../../lib/utils'
 
-const statusVariant = { accepted: 'success', in_review: 'warning', submitted: 'info', rejected: 'neutral' }
-const statusLabel = { accepted: 'Accepted', in_review: 'In Review', submitted: 'Submitted', rejected: 'Rejected' }
+const statusVariant = { draft: 'neutral', accepted: 'success', in_review: 'warning', submitted: 'info', rejected: 'neutral' }
+const statusLabel = { draft: 'Not yet submitted', accepted: 'Accepted', in_review: 'In Review', submitted: 'Submitted', rejected: 'Rejected' }
 
 export default function Applications() {
   const navigate = useNavigate()

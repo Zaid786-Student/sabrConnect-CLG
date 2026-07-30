@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, CalendarDays, MapPin, Trophy, Users2, CheckCircle2, Clock, Link2, ArrowUpRight,
-  Plus, KeyRound, X, UserRound, UserRoundX, Crown, Copy, Check, Mail, Lock,
+  Plus, KeyRound, X, UserRound, UserRoundX, Crown, Copy, Check, Mail, Lock, PartyPopper,
 } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card } from '../../components/ui/Card'
@@ -135,7 +135,16 @@ export default function HackathonDetail() {
       pendingMembers,
     }
 
-    await applyToOpportunity({ type: 'hackathon', opportunity: hackathon, user, formData, notifyApplicant: true })
+    await applyToOpportunity({
+      type: 'hackathon',
+      opportunity: hackathon,
+      user,
+      formData,
+      team: myTeamForThisHackathon,
+      notifyApplicant: false,
+      notifyOrganizer: false,
+      status: 'draft',
+    })
     setSubmitting(false)
   }
 
@@ -176,7 +185,7 @@ export default function HackathonDetail() {
 
   const submitFinal = async () => {
     setFinalizing(true)
-    await finalizeApplication(application.id)
+    await finalizeApplication(application.id, { team: myTeamForThisHackathon })
     setFinalizing(false)
   }
 
@@ -195,7 +204,9 @@ export default function HackathonDetail() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="font-display text-base font-semibold">Create or Join a Team</h2>
-                <p className="mt-0.5 text-xs text-white/40">Join one with a team code, or start your own for {hackathon.title}.</p>
+                <p className="mt-0.5 text-xs text-white/40">
+                  Create a team and you're the leader — join one with a team code and you're a member under that leader.
+                </p>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -402,13 +413,19 @@ export default function HackathonDetail() {
             {application ? (
               <div>
                 <div className="mb-4 flex items-center gap-2">
-                  <CheckCircle2 size={18} className="text-student" />
-                  <h2 className="font-display text-base font-semibold">Registration submitted</h2>
+                  {isFinalized ? <CheckCircle2 size={18} className="text-student" /> : <Clock size={18} className="text-student" />}
+                  <h2 className="font-display text-base font-semibold">
+                    {isFinalized ? 'Registration submitted' : 'Finish building your roster'}
+                  </h2>
                 </div>
                 <p className="text-sm text-white/50">
-                  Status: <span className="font-medium capitalize text-white/80">{application.status.replace('_', ' ')}</span>
+                  {isFinalized ? (
+                    <>Status: <span className="font-medium capitalize text-white/80">{application.status.replace('_', ' ')}</span></>
+                  ) : (
+                    'Not sent to the organizer yet — this happens automatically once you hit Final Submission below.'
+                  )}
                 </p>
-                <p className="mt-1 text-xs text-white/35">Submitted {formatDate(application.created_at)}</p>
+                <p className="mt-1 text-xs text-white/35">Draft saved {formatDate(application.created_at)}</p>
 
                 <div className="mt-5 space-y-2 rounded-xl border border-bg-border bg-white/[0.02] p-4 text-xs text-white/45">
                   <p className="flex items-center gap-1.5 text-white/70">
@@ -462,9 +479,14 @@ export default function HackathonDetail() {
                 <div className="mt-5 rounded-xl border border-bg-border bg-white/[0.02] p-4">
                   <p className="mb-2 text-xs font-medium text-white/60">Final submission</p>
                   {isFinalized ? (
-                    <p className="flex items-center gap-1.5 text-xs text-student">
-                      <CheckCircle2 size={13} /> Roster finalized — your team is locked in.
-                    </p>
+                    <div className="py-2 text-center">
+                      <PartyPopper className="mx-auto mb-2 text-student" size={24} />
+                      <p className="font-display text-sm font-semibold text-white">Your team is registered! 🎉</p>
+                      <p className="mt-1 text-xs text-white/45">
+                        Congrats — {myTeamForThisHackathon?.team_name || application.team_name} is locked in and sent to
+                        the organizer. Every teammate has been emailed a confirmation.
+                      </p>
+                    </div>
                   ) : (
                     <>
                       <ul className="mb-3 space-y-1 text-[11px] text-white/45">
@@ -485,11 +507,14 @@ export default function HackathonDetail() {
                       >
                         {!rosterComplete && <Lock size={14} />} {finalizing ? 'Submitting…' : 'Final Submission'}
                       </Button>
+                      <p className="mt-2 text-[11px] text-white/30">
+                        The organizer only sees your team once you hit Final Submission — nothing is sent to them before that.
+                      </p>
                     </>
                   )}
                 </div>
 
-                {hackathon.community_links?.length > 0 && (
+                {isFinalized && hackathon.community_links?.length > 0 && (
                   <div className="mt-5 space-y-2">
                     <p className="flex items-center gap-1.5 text-xs font-medium text-white/60">
                       <Link2 size={13} className="text-student" /> Join the community
