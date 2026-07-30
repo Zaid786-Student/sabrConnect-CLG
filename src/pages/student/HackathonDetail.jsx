@@ -102,12 +102,6 @@ export default function HackathonDetail() {
       return
     }
     const filledMembers = memberRows.filter((m) => m.name.trim() && m.email.trim() && m.phone.trim())
-    if (filledMembers.length < maxMemberRows) {
-      setFormError(
-        `Add all ${maxMemberRows} teammate${maxMemberRows === 1 ? '' : 's'} (currently ${filledMembers.length}) — just their name and phone for now, they'll fill the rest themselves via their invite link.`,
-      )
-      return
-    }
     if (!statements.problemStatement1.trim()) {
       setFormError('Problem statement 1 is required.')
       return
@@ -568,7 +562,9 @@ export default function HackathonDetail() {
               <div>
                 <h2 className="mb-4 font-display text-base font-semibold">Register for this hackathon</h2>
                 <p className="mb-4 flex items-center gap-1.5 text-xs text-white/40">
-                  <Users2 size={13} className="text-student" /> You register as the team leader — {maxMemberRows > 0 ? `add your ${maxMemberRows} teammate${maxMemberRows === 1 ? '' : 's'}' name and phone below,` : ''} each teammate then confirms their own spot via a link you share with them.
+                  <Users2 size={13} className="text-student" /> You register as the team leader. Your teammates should
+                  already be on the team via your team code — the section below is just an optional way to email
+                  anyone a reminder.
                 </p>
 
                 <form onSubmit={submit} className="space-y-5">
@@ -625,11 +621,11 @@ export default function HackathonDetail() {
                   {maxMemberRows > 0 && (
                     <div className="space-y-3 border-t border-bg-border pt-4">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-white/30">
-                        2. Your teammates ({memberRows.length}/{maxMemberRows})
+                        2. Email a teammate a reminder (optional)
                       </p>
                       <p className="text-[11px] text-white/35">
-                        Name, email, and phone for now — they'll fill in the rest (college year, gender, GitHub, etc.)
-                        themselves once you share their invite link.
+                        Not required — your teammates already join through your team code. This just sends a reminder
+                        email to anyone who hasn't joined yet.
                       </p>
                       {memberRows.map((row, index) => (
                         <div key={index} className="flex items-start gap-2 rounded-lg border border-bg-border bg-white/[0.02] p-3">
