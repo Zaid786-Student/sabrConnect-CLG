@@ -129,7 +129,7 @@ export default function HackathonDetail() {
       pendingMembers,
     }
 
-    await applyToOpportunity({
+    const result = await applyToOpportunity({
       type: 'hackathon',
       opportunity: hackathon,
       user,
@@ -140,6 +140,9 @@ export default function HackathonDetail() {
       status: 'draft',
     })
     setSubmitting(false)
+    if (!result) {
+      setFormError("Something went wrong saving your registration — please try again, or check your connection.")
+    }
   }
 
   const inviteLink = (token) => `${window.location.origin}/dashboard/student/confirm/${application?.id}/${token}`

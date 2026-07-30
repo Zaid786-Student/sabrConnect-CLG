@@ -229,7 +229,7 @@ create table if not exists applications (
   opportunity_id uuid not null,
   opportunity_type text not null check (opportunity_type in ('hackathon', 'internship')),
   title text,
-  status text not null default 'submitted' check (status in ('submitted', 'in_review', 'accepted', 'rejected')),
+  status text not null default 'submitted' check (status in ('draft', 'submitted', 'in_review', 'accepted', 'rejected')),
   form_data jsonb default '{}',
   team_id uuid references teams(id) on delete set null,
   team_name text,
