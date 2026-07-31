@@ -643,6 +643,45 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
   }
 
   // ---------- Team member profiles ----------
+  // Called from ProfileSettings.jsx after a profile save. team_members rows
+  // are a snapshot taken at join/creation time (name, bio, skills, etc.), so
+  // without this a profile edit would never show up on any team the person
+  // is already part of. Unlike updateMemberProfile (which targets one known
+  // team), this updates every team_members row for this user_id in a single
+  // pass — the person could be on more than one team across different
+  // hackathons/internships at once.
+  const syncMemberProfileEverywhere = async (userId, updates) => {
+    if (!userId) return
+    if (isSupabaseConfigured) {
+      const dbUpdates = { ...updates }
+      if ('full_name' in dbUpdates) {
+        dbUpdates.name = dbUpdates.full_name
+        delete dbUpdates.full_name
+      }
+      if ('portfolioUrl' in dbUpdates) dbUpdates.portfolio_url = dbUpdates.portfolioUrl
+      if ('githubUrl' in dbUpdates) dbUpdates.github_url = dbUpdates.githubUrl
+      delete dbUpdates.portfolioUrl
+      delete dbUpdates.githubUrl
+      delete dbUpdates.projects
+      delete dbUpdates.isLeader
+      delete dbUpdates.college
+      await supabase.from('team_members').update(dbUpdates).eq('user_id', userId)
+      return
+    }
+    const localUpdates = { ...updates }
+    if ('full_name' in localUpdates) {
+      localUpdates.name = localUpdates.full_name
+      delete localUpdates.full_name
+    }
+    delete localUpdates.college
+    setTeams((list) =>
+      list.map((t) => ({
+        ...t,
+        members: t.members.map((m) => (m.id === userId ? { ...m, ...localUpdates } : m)),
+      })),
+    )
+  }
+
   const updateMemberProfile = async (teamId, memberId, updates) => {
     if (isSupabaseConfigured) {
       const dbUpdates = { ...updates }
@@ -782,6 +821,7 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
     approveJoinRequest,
     rejectJoinRequest,
     updateMemberProfile,
+    syncMemberProfileEverywhere,
     addTeamAnnouncement,
     addTeamResource,
     removeTeamResource,

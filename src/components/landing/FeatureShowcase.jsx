@@ -1,4 +1,4 @@
-import { Users, Trophy, Briefcase, HeartHandshake, ClipboardCheck, Megaphone } from 'lucide-react'
+import { Users, Trophy, Briefcase, ClipboardCheck } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 const features = [
@@ -22,23 +22,10 @@ const features = [
     accent: 'student',
   },
   {
-    icon: HeartHandshake,
-    title: 'Volunteer Coordination',
-    desc: 'Assign tasks, track progress, and keep every event fully staffed from setup to teardown.',
-    span: 'md:col-span-2',
-    accent: 'volunteer',
-  },
-  {
     icon: ClipboardCheck,
     title: 'Application Tracking',
     desc: 'One place to see every status.',
     accent: 'organizer',
-  },
-  {
-    icon: Megaphone,
-    title: 'Event Management',
-    desc: 'Publish, manage, and monitor participation in real time.',
-    accent: 'volunteer',
   },
 ]
 

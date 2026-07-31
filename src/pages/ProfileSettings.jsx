@@ -6,10 +6,12 @@ import Button from '../components/ui/Button'
 import Input, { Field, Textarea } from '../components/ui/Input'
 import Badge from '../components/ui/Badge'
 import { useAuth } from '../context/AuthContext'
+import { useData } from '../context/DataContext'
 import { initials, roleTheme, splitTags } from '../lib/utils'
 
 export default function ProfileSettings() {
   const { user, updateProfile } = useAuth()
+  const { syncMemberProfileEverywhere } = useData()
   const theme = roleTheme[user?.role] || roleTheme.student
 
   const [form, setForm] = useState({
@@ -36,6 +38,13 @@ export default function ProfileSettings() {
         bio: form.bio,
         skills: splitTags(form.skills),
       })
+      if (user?.role === 'student') {
+        await syncMemberProfileEverywhere(user.id, {
+          full_name: form.full_name,
+          bio: form.bio,
+          skills: splitTags(form.skills),
+        })
+      }
       setSaved(true)
     } finally {
       setSaving(false)
