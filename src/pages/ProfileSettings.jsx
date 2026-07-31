@@ -3,11 +3,11 @@ import { Check, Loader2, User } from 'lucide-react'
 import DashboardShell from '../components/layout/DashboardShell'
 import { Card } from '../components/ui/Card'
 import Button from '../components/ui/Button'
-import Input, { Field, Textarea } from '../components/ui/Input'
+import Input, { Field, Textarea, Select } from '../components/ui/Input'
 import Badge from '../components/ui/Badge'
 import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
-import { initials, roleTheme, splitTags } from '../lib/utils'
+import { initials, roleTheme, splitTags, COLLEGE_OPTIONS } from '../lib/utils'
 
 export default function ProfileSettings() {
   const { user, updateProfile } = useAuth()
@@ -82,12 +82,12 @@ export default function ProfileSettings() {
             {user?.role === 'student' && (
               <>
                 <Field label="College" htmlFor="college">
-                  <Input
-                    id="college"
-                    value={form.college}
-                    onChange={handleChange('college')}
-                    placeholder="e.g. VIT Vellore"
-                  />
+                  <Select id="college" required value={form.college} onChange={handleChange('college')}>
+                    <option value="">Select</option>
+                    {COLLEGE_OPTIONS.map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
+                  </Select>
                 </Field>
                 <Field label="Skills" htmlFor="skills" hint="Comma-separated, e.g. React, Python, UI Design">
                   <Input id="skills" value={form.skills} onChange={handleChange('skills')} />

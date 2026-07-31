@@ -40,6 +40,15 @@ export const TEAM_CAPACITY = 6
 
 export const GENDER_OPTIONS = ['Male', 'Female', 'Other']
 
+export const COLLEGE_OPTIONS = [
+  'GCRG College of Engineering',
+  'GCRG College of Pharmacy',
+  'GCRG College of ITI',
+  'GCRG Diploma',
+  'GCRG College of Nursing',
+  'GCRG College of Management',
+]
+
 // Short, human-typeable code teammates use to join a team directly
 // (no ambiguous characters like 0/O or 1/I).
 export function generateTeamCode() {

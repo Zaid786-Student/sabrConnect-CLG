@@ -7,9 +7,7 @@ import Button from '../../components/ui/Button'
 import Input, { Field, Select } from '../../components/ui/Input'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
-import { GENDER_OPTIONS } from '../../lib/utils'
-
-const FIXED_COLLEGE = 'G.C.R.G Group of Institution'
+import { GENDER_OPTIONS, COLLEGE_OPTIONS } from '../../lib/utils'
 
 const ERROR_MESSAGES = {
   NOT_FOUND: "This invite link isn't valid — double check the link your team leader shared.",
@@ -25,7 +23,7 @@ export default function ConfirmMembership() {
   const application = getApplicationById(applicationId)
   const pendingMember = application?.formData?.pendingMembers?.find((m) => m.token === token)
 
-  const [form, setForm] = useState({ year: '2nd Year', gender: '', githubUrl: '' })
+  const [form, setForm] = useState({ year: '2nd Year', gender: '', college: '', githubUrl: '' })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
@@ -70,9 +68,13 @@ export default function ConfirmMembership() {
       setError('Please select your gender.')
       return
     }
+    if (!form.college) {
+      setError('Please select your college.')
+      return
+    }
     setSubmitting(true)
     const result = await confirmApplicationMember(applicationId, token, user, {
-      college: FIXED_COLLEGE,
+      college: form.college,
       year: form.year,
       gender: form.gender,
       githubUrl: form.githubUrl,
@@ -110,7 +112,12 @@ export default function ConfirmMembership() {
             <Input id="phone" value={pendingMember.phone} disabled readOnly />
           </Field>
           <Field label="College" htmlFor="college">
-            <Input id="college" value={FIXED_COLLEGE} disabled readOnly />
+            <Select id="college" required value={form.college} onChange={(e) => setForm((f) => ({ ...f, college: e.target.value }))}>
+              <option value="">Select</option>
+              {COLLEGE_OPTIONS.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </Select>
           </Field>
           <Field label="Year" htmlFor="year">
             <Select id="year" value={form.year} onChange={(e) => setForm((f) => ({ ...f, year: e.target.value }))}>

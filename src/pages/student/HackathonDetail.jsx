@@ -15,10 +15,7 @@ import TeamAvatar from '../../components/teams/TeamAvatar'
 import TeamRegistrationPanel from '../../components/teams/TeamRegistrationPanel'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
-import { formatDate, daysUntil, uid, TEAM_CAPACITY, GENDER_OPTIONS } from '../../lib/utils'
-
-// Fixed institution — every registration is locked to this college.
-const FIXED_COLLEGE = 'G.C.R.G Group of Institution'
+import { formatDate, daysUntil, uid, TEAM_CAPACITY, GENDER_OPTIONS, COLLEGE_OPTIONS } from '../../lib/utils'
 
 export default function HackathonDetail() {
   const { id } = useParams()
@@ -68,6 +65,7 @@ export default function HackathonDetail() {
     phone: '',
     year: '2nd Year',
     gender: '',
+    college: '',
   })
   const [memberRows, setMemberRows] = useState([{ name: '', email: '', phone: '' }])
   const [statements, setStatements] = useState({ problemStatement1: '', problemStatement2: '', whyJoin: '' })
@@ -88,8 +86,8 @@ export default function HackathonDetail() {
     e.preventDefault()
     setFormError('')
 
-    if (!leaderForm.name.trim() || !leaderForm.email.trim() || !leaderForm.phone.trim() || !leaderForm.gender) {
-      setFormError('Please fill in your name, email, phone number, and gender.')
+    if (!leaderForm.name.trim() || !leaderForm.email.trim() || !leaderForm.phone.trim() || !leaderForm.gender || !leaderForm.college) {
+      setFormError('Please fill in your name, email, phone number, gender, and college.')
       return
     }
 
@@ -120,7 +118,7 @@ export default function HackathonDetail() {
       email: leaderForm.email,
       phone: leaderForm.phone,
       gender: leaderForm.gender,
-      college: FIXED_COLLEGE,
+      college: leaderForm.college,
       year: leaderForm.year,
       problemStatement1: statements.problemStatement1,
       problemStatement2: statements.problemStatement2,
@@ -573,7 +571,12 @@ export default function HackathonDetail() {
                       </Select>
                     </Field>
                     <Field label="College" htmlFor="college">
-                      <Input id="college" value={FIXED_COLLEGE} disabled readOnly />
+                      <Select id="college" required value={leaderForm.college} onChange={(e) => setLeaderForm((f) => ({ ...f, college: e.target.value }))}>
+                        <option value="">Select</option>
+                        {COLLEGE_OPTIONS.map((c) => (
+                          <option key={c}>{c}</option>
+                        ))}
+                      </Select>
                     </Field>
                     <Field label="Year" htmlFor="year">
                       <Select id="year" value={leaderForm.year} onChange={(e) => setLeaderForm((f) => ({ ...f, year: e.target.value }))}>
