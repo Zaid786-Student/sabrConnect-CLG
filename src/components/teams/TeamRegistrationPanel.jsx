@@ -84,23 +84,36 @@ export default function TeamRegistrationPanel({ opportunity = null, defaultTab =
       return
     }
     setCreating(true)
-    const result = await createTeam(
-      {
-        ...createForm,
-        creatorSkills: splitTags(createForm.creatorSkills),
-        opportunity_id: opportunity?.id,
-        opportunity_title: opportunity?.title,
-        opportunity_type: opportunity?.type,
-      },
-      user,
-    )
-    setCreating(false)
-    if (!result?.success) {
-      setCreateError(CREATE_ERROR_MESSAGES[result?.error] || CREATE_ERROR_MESSAGES.UNKNOWN)
-      return
+    try {
+      const result = await createTeam(
+        {
+          ...createForm,
+          creatorSkills: splitTags(createForm.creatorSkills),
+          opportunity_id: opportunity?.id,
+          opportunity_title: opportunity?.title,
+          opportunity_type: opportunity?.type,
+        },
+        user,
+      )
+      if (!result?.success) {
+        setCreateError(CREATE_ERROR_MESSAGES[result?.error] || CREATE_ERROR_MESSAGES.UNKNOWN)
+        return
+      }
+      const teamName = result.team.team_name
+      const teamCode = result.team.team_code
+      setCreateSuccess({ teamName, teamCode })
+      // Guaranteed, unmissable confirmation in addition to the inline card
+      // below — fires even if the inline card fails to render for any
+      // reason, so the leader always sees the congrats + code.
+      window.alert(`🎉 Team "${teamName}" created successfully!\n\nYour team code: ${teamCode}\n\nShare this code with your teammates so they can join.`)
+      onCreated?.(result.team)
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('submitCreate failed', err)
+      setCreateError(CREATE_ERROR_MESSAGES.UNKNOWN)
+    } finally {
+      setCreating(false)
     }
-    setCreateSuccess({ teamName: result.team.team_name, teamCode: result.team.team_code })
-    onCreated?.(result.team)
   }
 
   const copyTeamCode = () => {
