@@ -481,6 +481,9 @@ create policy "Users can join teams" on team_members for insert with check (auth
 create policy "Leaders manage membership" on team_members for update using (
   team_id in (select id from teams where leader_id in (select id from profiles where user_id = auth.uid()))
 );
+create policy "Members can update their own row" on team_members for update using (
+  user_id in (select id from profiles where user_id = auth.uid())
+);
 create policy "Users can leave teams" on team_members for delete using (
   user_id in (select id from profiles where user_id = auth.uid())
   or team_id in (select id from teams where leader_id in (select id from profiles where user_id = auth.uid()))

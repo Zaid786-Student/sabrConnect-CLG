@@ -652,6 +652,13 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
   // hackathons/internships at once.
   const syncMemberProfileEverywhere = async (userId, updates) => {
     if (!userId) return
+    const localUpdates = { ...updates }
+    if ('full_name' in localUpdates) {
+      localUpdates.name = localUpdates.full_name
+      delete localUpdates.full_name
+    }
+    delete localUpdates.college
+
     if (isSupabaseConfigured) {
       const dbUpdates = { ...updates }
       if ('full_name' in dbUpdates) {
@@ -665,15 +672,17 @@ export function useTeamsModule({ addNotification, applyToOpportunity, addMemberT
       delete dbUpdates.projects
       delete dbUpdates.isLeader
       delete dbUpdates.college
-      await supabase.from('team_members').update(dbUpdates).eq('user_id', userId)
-      return
+      const { error } = await supabase.from('team_members').update(dbUpdates).eq('user_id', userId)
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error('syncMemberProfileEverywhere failed', error)
+        return
+      }
     }
-    const localUpdates = { ...updates }
-    if ('full_name' in localUpdates) {
-      localUpdates.name = localUpdates.full_name
-      delete localUpdates.full_name
-    }
-    delete localUpdates.college
+    // Update local state immediately either way — in Supabase mode this
+    // makes the change show up on the acting user's own screen right away
+    // instead of waiting for the realtime round-trip; teammates still get
+    // it via the team_members realtime subscription.
     setTeams((list) =>
       list.map((t) => ({
         ...t,
