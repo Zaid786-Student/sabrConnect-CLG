@@ -1,4 +1,4 @@
-import { Zap, Github, Twitter, Linkedin } from 'lucide-react'
+import { Zap, Github, Linkedin } from 'lucide-react'
 
 const columns = [
   {
@@ -11,9 +11,19 @@ const columns = [
   },
   {
     title: 'Contact',
-    links: ['hello@sabrconnect.dev', 'Support Center'],
+    links: ['sabrsquadss786@gmail.com'],
   },
 ]
+
+const socialLinks = [
+  { Icon: Github, href: 'https://github.com/Zaid786-Student', label: 'GitHub' },
+  { Icon: Linkedin, href: 'https://www.linkedin.com/in/zaid-khan-4187a4414', label: 'LinkedIn' },
+]
+
+function linkHref(link) {
+  if (link.includes('@')) return `mailto:${link}`
+  return '#'
+}
 
 export default function Footer() {
   return (
@@ -30,10 +40,13 @@ export default function Footer() {
             One ecosystem for students, volunteers, and organizers to discover opportunities and build what's next.
           </p>
           <div className="mt-5 flex gap-3">
-            {[Github, Twitter, Linkedin].map((Icon, i) => (
+            {socialLinks.map(({ Icon, href, label }) => (
               <a
-                key={i}
-                href="#"
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={label}
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-bg-border text-white/50 transition-colors hover:border-white/20 hover:text-white"
               >
                 <Icon size={16} />
@@ -48,7 +61,7 @@ export default function Footer() {
             <ul className="space-y-3">
               {col.links.map((link) => (
                 <li key={link}>
-                  <a href="#" className="text-sm text-white/50 transition-colors hover:text-white">
+                  <a href={linkHref(link)} className="text-sm text-white/50 transition-colors hover:text-white">
                     {link}
                   </a>
                 </li>

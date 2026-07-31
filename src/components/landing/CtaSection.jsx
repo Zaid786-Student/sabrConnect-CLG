@@ -5,7 +5,7 @@ import Button from '../ui/Button'
 export default function CtaSection() {
   const navigate = useNavigate()
   return (
-    <section id="about" className="container-page py-24">
+    <section id="get-started" className="container-page py-24">
       <div className="relative overflow-hidden rounded-3xl border border-bg-border bg-bg-card px-8 py-16 text-center md:py-20">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.12),transparent_60%)]" />
         <div className="relative">

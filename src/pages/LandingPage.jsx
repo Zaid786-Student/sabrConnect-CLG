@@ -6,6 +6,7 @@ import FeatureShowcase from '../components/landing/FeatureShowcase'
 import OpportunityPreview from '../components/landing/OpportunityPreview'
 import ActivityFeed from '../components/landing/ActivityFeed'
 import CtaSection from '../components/landing/CtaSection'
+import TeamSection from '../components/landing/TeamSection'
 
 export default function LandingPage() {
   return (
@@ -18,6 +19,7 @@ export default function LandingPage() {
         <OpportunityPreview />
         <ActivityFeed />
         <CtaSection />
+        <TeamSection />
       </main>
       <Footer />
     </div>
