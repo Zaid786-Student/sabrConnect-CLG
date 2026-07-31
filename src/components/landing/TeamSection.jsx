@@ -21,7 +21,7 @@ const members = [
     name: 'Kamran',
     role: 'Member',
     phone: '+91 88819 23685',
-    email: 'kamransiddique@gmail.com',
+    email: 'kamransiddique782@gmail.com',
     accent: 'organizer',
   },
   {
