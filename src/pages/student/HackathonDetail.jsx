@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, CalendarDays, MapPin, Trophy, Users2, CheckCircle2, Clock, Link2, ArrowUpRight,
-  Plus, KeyRound, X, UserRound, UserRoundX, Crown, Copy, Check, Mail, Lock, PartyPopper,
+  Plus, KeyRound, X, UserRound, UserRoundX, Crown, Lock, PartyPopper,
 } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card } from '../../components/ui/Card'
@@ -73,7 +73,6 @@ export default function HackathonDetail() {
   const [statements, setStatements] = useState({ problemStatement1: '', problemStatement2: '', whyJoin: '' })
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [copiedToken, setCopiedToken] = useState('')
 
   const maxMemberRows = Math.max(0, requiredTeamSize - 1)
 
@@ -143,24 +142,6 @@ export default function HackathonDetail() {
     if (!result) {
       setFormError("Something went wrong saving your registration — please try again, or check your connection.")
     }
-  }
-
-  const inviteLink = (token) => `${window.location.origin}/dashboard/student/confirm/${application?.id}/${token}`
-  const copyLink = (token) => {
-    navigator.clipboard?.writeText(inviteLink(token))
-    setCopiedToken(token)
-    setTimeout(() => setCopiedToken(''), 1500)
-  }
-  // No email-sending backend is wired up yet (see NotificationsContext's
-  // sendMail — it only logs to mail_log, it doesn't reach a real inbox), so
-  // this opens the leader's own mail client with the invite pre-filled
-  // rather than silently pretending an email went out.
-  const mailtoInvite = (member) => {
-    const subject = encodeURIComponent(`Join my team for ${hackathon.title}`)
-    const body = encodeURIComponent(
-      `Hi ${member.name},\n\nYou've been added to our team for ${hackathon.title}. Confirm your spot here:\n${inviteLink(member.token)}\n\nSee you there!`,
-    )
-    return `mailto:${member.email}?subject=${subject}&body=${body}`
   }
 
   // ---------- Final submission gating ----------
@@ -436,8 +417,7 @@ export default function HackathonDetail() {
                   <div className="mt-5">
                     <p className="mb-2 text-xs font-medium text-white/60">Teammates ({application.formData.pendingMembers.length})</p>
                     <p className="mb-3 text-[11px] text-white/35">
-                      Email or share the link below with each teammate — they'll open it, confirm their name/phone, and
-                      fill in the rest of their own details.
+                      Your teammates join using your team's join code — this list just tracks who's confirmed so far.
                     </p>
                     <div className="space-y-2">
                       {application.formData.pendingMembers.map((m) => (
@@ -450,22 +430,7 @@ export default function HackathonDetail() {
                           {m.confirmed ? (
                             <Badge variant="success" className="shrink-0">Confirmed</Badge>
                           ) : (
-                            <div className="flex shrink-0 items-center gap-1.5">
-                              <a
-                                href={mailtoInvite(m)}
-                                className="flex items-center gap-1 rounded-md border border-bg-border px-2.5 py-1 text-[11px] font-medium text-white/60 hover:text-white"
-                                title="Opens your email app with the invite pre-filled"
-                              >
-                                <Mail size={11} /> Email
-                              </a>
-                              <button
-                                type="button"
-                                onClick={() => copyLink(m.token)}
-                                className="flex items-center gap-1 rounded-md border border-student/30 bg-student-soft px-2.5 py-1 text-[11px] font-medium text-student hover:brightness-110"
-                              >
-                                {copiedToken === m.token ? <Check size={11} /> : <Copy size={11} />} {copiedToken === m.token ? 'Copied' : 'Copy link'}
-                              </button>
-                            </div>
+                            <Badge variant="neutral" className="shrink-0">Pending</Badge>
                           )}
                         </div>
                       ))}
