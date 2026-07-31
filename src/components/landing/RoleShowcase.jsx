@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GraduationCap, HeartHandshake, Building2, ArrowUpRight } from 'lucide-react'
+import { GraduationCap, Building2, ArrowUpRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 const roles = [
@@ -11,14 +11,6 @@ const roles = [
     tagline: 'Find your next build.',
     points: ['Find opportunities', 'Build teams', 'Track applications'],
     accent: 'student',
-  },
-  {
-    id: 'volunteer',
-    icon: HeartHandshake,
-    title: 'Volunteer',
-    tagline: 'Keep events running.',
-    points: ['Support events', 'Manage tasks', 'Gain experience'],
-    accent: 'volunteer',
   },
   {
     id: 'organizer',
@@ -37,12 +29,6 @@ const styles = {
     ring: 'ring-student/30',
     dot: 'bg-student',
   },
-  volunteer: {
-    border: 'hover:border-volunteer/40',
-    icon: 'bg-volunteer-soft text-volunteer',
-    ring: 'ring-volunteer/30',
-    dot: 'bg-volunteer',
-  },
   organizer: {
     border: 'hover:border-organizer/40',
     icon: 'bg-organizer-soft text-organizer',
@@ -58,11 +44,11 @@ export default function RoleShowcase() {
   return (
     <section className="container-page py-24">
       <div className="mb-12 max-w-lg">
-        <p className="eyebrow mb-3">Three roles, one workspace</p>
+        <p className="eyebrow mb-3">Two roles, one workspace</p>
         <h2 className="text-3xl font-semibold md:text-4xl">Built around who you are on the platform.</h2>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2">
         {roles.map((role) => {
           const s = styles[role.id]
           const Icon = role.icon
