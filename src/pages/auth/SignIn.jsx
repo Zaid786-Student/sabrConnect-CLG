@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import AuthLayout from './AuthLayout'
-import Input, { Field } from '../../components/ui/Input'
+import Input, { Field, PasswordInput } from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
 import GoogleIcon from '../../components/ui/GoogleIcon'
 import { useAuth } from '../../context/AuthContext'
@@ -64,9 +64,8 @@ export default function SignIn() {
               Forgot password?
             </Link>
           </div>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             required
             placeholder="••••••••"
             value={form.password}

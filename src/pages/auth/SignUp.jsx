@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Clock3 } from 'lucide-react'
 import AuthLayout from './AuthLayout'
-import Input, { Field } from '../../components/ui/Input'
+import Input, { Field, PasswordInput } from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
 import RoleSelect from '../../components/ui/RoleSelect'
 import GoogleIcon from '../../components/ui/GoogleIcon'
@@ -18,6 +18,7 @@ export default function SignUp() {
     fullName: '',
     email: '',
     password: '',
+    confirmPassword: '',
     role: location.state?.role === 'volunteer' ? 'student' : location.state?.role || 'student',
   })
   const [error, setError] = useState('')
@@ -34,6 +35,10 @@ export default function SignUp() {
     setError('')
     if (form.password.length < 6) {
       setError('Password must be at least 6 characters.')
+      return
+    }
+    if (form.password !== form.confirmPassword) {
+      setError('Passwords do not match.')
       return
     }
     setLoading(true)
@@ -113,13 +118,22 @@ export default function SignUp() {
         </Field>
 
         <Field label="Password" htmlFor="password" hint="At least 6 characters.">
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             required
             placeholder="••••••••"
             value={form.password}
             onChange={update('password')}
+          />
+        </Field>
+
+        <Field label="Confirm password" htmlFor="confirmPassword">
+          <PasswordInput
+            id="confirmPassword"
+            required
+            placeholder="••••••••"
+            value={form.confirmPassword}
+            onChange={update('confirmPassword')}
           />
         </Field>
 
