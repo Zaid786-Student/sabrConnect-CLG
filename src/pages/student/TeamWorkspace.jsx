@@ -854,6 +854,7 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
       : getInternshipSubmission(team.id, activeId)
 
   const ended = opportunity?.end_date ? new Date(opportunity.end_date) < new Date() : false
+  const notStarted = opportunity?.start_date ? new Date(opportunity.start_date) > new Date() : false
 
   const [editing, setEditing] = useState(!existing)
   const [submitError, setSubmitError] = useState('')
@@ -871,6 +872,10 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
     e.preventDefault()
     setSubmitError('')
     if (!form.project_title.trim() || !form.description.trim()) return
+    if (notStarted) {
+      setSubmitError(`Submissions open on ${formatDate(opportunity?.start_date)} — check back then.`)
+      return
+    }
 
     const submitFn = activeType === 'hackathon' ? submitProject : submitTeamInternshipProject
     if (typeof submitFn !== 'function') {
@@ -981,10 +986,25 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
         <Field label="Tech stack" htmlFor="proj-stack" hint="Comma-separated, e.g. React, Node.js, Postgres">
           <Input id="proj-stack" value={form.tech_stack} onChange={(e) => setForm((f) => ({ ...f, tech_stack: e.target.value }))} placeholder="React, Node.js, Postgres" />
         </Field>
+        {notStarted && (
+          <p className="flex items-center gap-1.5 text-xs text-white/40">
+            <Lock size={12} /> Submissions open on {formatDate(opportunity?.start_date)}.
+          </p>
+        )}
         {submitError && <p className="text-xs text-red-400">{submitError}</p>}
         <div className="flex gap-2">
-          <Button type="submit" disabled={submitting}>
-            {submitting ? 'Saving...' : existing ? 'Save changes' : 'Submit Project'}
+          <Button type="submit" disabled={submitting || notStarted}>
+            {notStarted ? (
+              <>
+                <Lock size={14} /> Opens {formatDate(opportunity?.start_date)}
+              </>
+            ) : submitting ? (
+              'Saving...'
+            ) : existing ? (
+              'Save changes'
+            ) : (
+              'Submit Project'
+            )}
           </Button>
           {existing && (
             <Button type="button" variant="outline" onClick={() => setEditing(false)}>
