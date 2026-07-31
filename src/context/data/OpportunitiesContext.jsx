@@ -102,6 +102,27 @@ export function useOpportunitiesModule({ addNotification, getApplicantIdsForOppo
     return { success: true, hackathon }
   }
 
+  const updateHackathon = async (hackathonId, updates) => {
+    const clean = { ...updates }
+    ;['start_date', 'end_date', 'registration_deadline'].forEach((key) => {
+      if (clean[key] === '') clean[key] = null
+    })
+    ;['team_size', 'min_female_members'].forEach((key) => {
+      if (clean[key] === '') clean[key] = null
+      else if (typeof clean[key] === 'string') clean[key] = Number(clean[key])
+    })
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('hackathons').update(clean).eq('id', hackathonId)
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error('updateHackathon failed', error)
+        return { success: false, error: error.message }
+      }
+    }
+    setHackathons((list) => list.map((h) => (h.id === hackathonId ? { ...h, ...clean } : h)))
+    return { success: true }
+  }
+
   const addHackathonNotice = async (hackathonId, notice) => {
     if (isSupabaseConfigured) {
       const { data, error } = await supabase
@@ -162,6 +183,21 @@ export function useOpportunitiesModule({ addNotification, getApplicantIdsForOppo
     return { success: true, internship }
   }
 
+  const updateInternship = async (internshipId, updates) => {
+    const clean = { ...updates }
+    if (clean.deadline === '') clean.deadline = null
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('internships').update(clean).eq('id', internshipId)
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error('updateInternship failed', error)
+        return { success: false, error: error.message }
+      }
+    }
+    setInternships((list) => list.map((i) => (i.id === internshipId ? { ...i, ...clean } : i)))
+    return { success: true }
+  }
+
   const addInternshipNotice = async (internshipId, notice) => {
     if (isSupabaseConfigured) {
       const { data, error } = await supabase
@@ -218,8 +254,10 @@ export function useOpportunitiesModule({ addNotification, getApplicantIdsForOppo
     hackathons,
     internships,
     addHackathon,
+    updateHackathon,
     addHackathonNotice,
     addInternship,
+    updateInternship,
     addInternshipNotice,
     adjustParticipantCount,
   }

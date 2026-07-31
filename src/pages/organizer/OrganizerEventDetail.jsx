@@ -1,18 +1,18 @@
 import { useState } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { ArrowLeft, Check, X, Users2, ClipboardCheck, Megaphone, Lock, Eye, XCircle, Download } from 'lucide-react'
+import { ArrowLeft, Check, X, Users2, ClipboardCheck, Megaphone, Lock, Eye, XCircle, Download, Pencil } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card, StatCard } from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
-import Input, { Textarea } from '../../components/ui/Input'
+import Input, { Field, Textarea } from '../../components/ui/Input'
 import NoticeList from '../../components/dashboard/NoticeList'
 import JudgingTab from './Judging'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
-import { formatDate } from '../../lib/utils'
+import { formatDate, splitTags } from '../../lib/utils'
 
 const appStatusVariant = { accepted: 'success', in_review: 'warning', submitted: 'info', rejected: 'neutral' }
 
@@ -26,6 +26,8 @@ export default function OrganizerEventDetail() {
     applications,
     teams,
     setApplicationStatus,
+    updateHackathon,
+    updateInternship,
     addHackathonNotice,
     addInternshipNotice,
     getSubmissionsForHackathon,
@@ -39,6 +41,10 @@ export default function OrganizerEventDetail() {
   const [tab, setTab] = useState(searchParams.get('tab') || 'overview')
   const [noticeForm, setNoticeForm] = useState({ title: '', content: '' })
   const [detailsFor, setDetailsFor] = useState(null) // application whose full team details modal is open
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState(null)
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
 
   const isHackathon = kind === 'hackathon'
   const event = isHackathon ? hackathons.find((h) => h.id === id) : internships.find((i) => i.id === id)
@@ -83,6 +89,63 @@ export default function OrganizerEventDetail() {
     if (isHackathon) addHackathonNotice(event.id, noticeForm)
     else addInternshipNotice(event.id, noticeForm)
     setNoticeForm({ title: '', content: '' })
+  }
+
+  const openEdit = () => {
+    setEditError('')
+    if (isHackathon) {
+      setEditForm({
+        title: event.title || '',
+        description: event.description || '',
+        start_date: event.start_date || '',
+        end_date: event.end_date || '',
+        registration_deadline: event.registration_deadline || '',
+        location: event.location || '',
+        prize: event.prize || '',
+        rules: event.rules || '',
+        tags: (event.tags || []).join(', '),
+        team_size: event.team_size ?? '',
+        min_female_members: event.min_female_members ?? '',
+      })
+    } else {
+      setEditForm({
+        title: event.title || '',
+        company: event.company || '',
+        description: event.description || '',
+        deadline: event.deadline || '',
+        location: event.location || '',
+        stipend: event.stipend || '',
+        duration: event.duration || '',
+        responsibilities: event.responsibilities || '',
+        requirements: event.requirements || '',
+      })
+    }
+    setEditing(true)
+  }
+
+  const submitEdit = async (e) => {
+    e.preventDefault()
+    if (!editForm.title.trim()) {
+      setEditError('Title is required.')
+      return
+    }
+    setEditSaving(true)
+    setEditError('')
+    const updates = isHackathon
+      ? {
+          ...editForm,
+          tags: splitTags(editForm.tags),
+          team_size: editForm.team_size !== '' ? Number(editForm.team_size) : null,
+          min_female_members: editForm.min_female_members !== '' ? Number(editForm.min_female_members) : null,
+        }
+      : { ...editForm }
+    const result = isHackathon ? await updateHackathon(event.id, updates) : await updateInternship(event.id, updates)
+    setEditSaving(false)
+    if (!result?.success) {
+      setEditError(result?.error || 'Something went wrong saving your changes — please try again.')
+      return
+    }
+    setEditing(false)
   }
 
   const tabs = [
@@ -210,10 +273,13 @@ export default function OrganizerEventDetail() {
             {event.thumbnail_url && (
               <img src={event.thumbnail_url} alt="" className="-mx-6 -mt-6 mb-4 h-44 w-[calc(100%+3rem)] rounded-t-2xl object-cover" />
             )}
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-3 flex items-center justify-between gap-2">
               <Badge variant={isHackathon ? 'organizer' : 'volunteer'} className="capitalize">
                 {event.status || 'open'}
               </Badge>
+              <Button variant="outline" className="text-xs" onClick={openEdit}>
+                <Pencil size={13} /> Edit
+              </Button>
             </div>
             <p className="text-sm leading-relaxed text-white/60">{event.description}</p>
             {isHackathon && (event.team_size || event.min_female_members) && (
@@ -404,6 +470,205 @@ export default function OrganizerEventDetail() {
           {eventApplications.length === 0 && (
             <Card className="text-center text-sm text-white/30">No applications for this event yet.</Card>
           )}
+        </div>
+      )}
+
+      {editing && editForm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !editSaving && setEditing(false)}
+        >
+          <div className="w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
+            <Card className="relative max-h-[85vh] overflow-y-auto">
+              <button
+                className="absolute right-4 top-4 text-white/40 hover:text-white"
+                onClick={() => setEditing(false)}
+                aria-label="Close"
+                disabled={editSaving}
+              >
+                <XCircle size={20} />
+              </button>
+
+              <h2 className="pr-8 font-display text-lg font-semibold">Edit {isHackathon ? 'Hackathon' : 'Internship'}</h2>
+              <p className="mt-1 text-xs text-white/40">Changes are visible to students as soon as you save.</p>
+
+              <form onSubmit={submitEdit} className="mt-5 space-y-4">
+                <Field label="Title" htmlFor="edit-title">
+                  <Input
+                    id="edit-title"
+                    required
+                    value={editForm.title}
+                    onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                  />
+                </Field>
+
+                {!isHackathon && (
+                  <Field label="Company" htmlFor="edit-company">
+                    <Input
+                      id="edit-company"
+                      value={editForm.company}
+                      onChange={(e) => setEditForm((f) => ({ ...f, company: e.target.value }))}
+                    />
+                  </Field>
+                )}
+
+                <Field label="Description" htmlFor="edit-description">
+                  <Textarea
+                    id="edit-description"
+                    value={editForm.description}
+                    onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                  />
+                </Field>
+
+                {isHackathon && (
+                  <Field label="Rules" htmlFor="edit-rules">
+                    <Textarea
+                      id="edit-rules"
+                      value={editForm.rules}
+                      onChange={(e) => setEditForm((f) => ({ ...f, rules: e.target.value }))}
+                    />
+                  </Field>
+                )}
+
+                {isHackathon ? (
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <Field label="Start date" htmlFor="edit-start">
+                      <Input
+                        id="edit-start"
+                        type="date"
+                        value={editForm.start_date}
+                        onChange={(e) => setEditForm((f) => ({ ...f, start_date: e.target.value }))}
+                      />
+                    </Field>
+                    <Field label="End date" htmlFor="edit-end">
+                      <Input
+                        id="edit-end"
+                        type="date"
+                        value={editForm.end_date}
+                        onChange={(e) => setEditForm((f) => ({ ...f, end_date: e.target.value }))}
+                      />
+                    </Field>
+                    <Field label="Registration deadline" htmlFor="edit-reg-deadline">
+                      <Input
+                        id="edit-reg-deadline"
+                        type="date"
+                        value={editForm.registration_deadline}
+                        onChange={(e) => setEditForm((f) => ({ ...f, registration_deadline: e.target.value }))}
+                      />
+                    </Field>
+                  </div>
+                ) : (
+                  <Field label="Application deadline" htmlFor="edit-deadline">
+                    <Input
+                      id="edit-deadline"
+                      type="date"
+                      value={editForm.deadline}
+                      onChange={(e) => setEditForm((f) => ({ ...f, deadline: e.target.value }))}
+                    />
+                  </Field>
+                )}
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Location" htmlFor="edit-location">
+                    <Input
+                      id="edit-location"
+                      placeholder="Remote / City, IN"
+                      value={editForm.location}
+                      onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))}
+                    />
+                  </Field>
+                  {isHackathon ? (
+                    <Field label="Prize" htmlFor="edit-prize">
+                      <Input
+                        id="edit-prize"
+                        placeholder="₹1,00,000 prize pool"
+                        value={editForm.prize}
+                        onChange={(e) => setEditForm((f) => ({ ...f, prize: e.target.value }))}
+                      />
+                    </Field>
+                  ) : (
+                    <Field label="Stipend" htmlFor="edit-stipend">
+                      <Input
+                        id="edit-stipend"
+                        value={editForm.stipend}
+                        onChange={(e) => setEditForm((f) => ({ ...f, stipend: e.target.value }))}
+                      />
+                    </Field>
+                  )}
+                </div>
+
+                {isHackathon ? (
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <Field label="Team size" htmlFor="edit-team-size">
+                      <Input
+                        id="edit-team-size"
+                        type="number"
+                        min="1"
+                        value={editForm.team_size}
+                        onChange={(e) => setEditForm((f) => ({ ...f, team_size: e.target.value }))}
+                      />
+                    </Field>
+                    <Field label="Min female members" htmlFor="edit-min-female">
+                      <Input
+                        id="edit-min-female"
+                        type="number"
+                        min="0"
+                        value={editForm.min_female_members}
+                        onChange={(e) => setEditForm((f) => ({ ...f, min_female_members: e.target.value }))}
+                      />
+                    </Field>
+                    <Field label="Tags" htmlFor="edit-tags" hint="Comma-separated">
+                      <Input
+                        id="edit-tags"
+                        value={editForm.tags}
+                        onChange={(e) => setEditForm((f) => ({ ...f, tags: e.target.value }))}
+                      />
+                    </Field>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Duration" htmlFor="edit-duration">
+                      <Input
+                        id="edit-duration"
+                        value={editForm.duration}
+                        onChange={(e) => setEditForm((f) => ({ ...f, duration: e.target.value }))}
+                      />
+                    </Field>
+                  </div>
+                )}
+
+                {!isHackathon && (
+                  <>
+                    <Field label="Responsibilities" htmlFor="edit-responsibilities">
+                      <Textarea
+                        id="edit-responsibilities"
+                        value={editForm.responsibilities}
+                        onChange={(e) => setEditForm((f) => ({ ...f, responsibilities: e.target.value }))}
+                      />
+                    </Field>
+                    <Field label="Requirements" htmlFor="edit-requirements">
+                      <Textarea
+                        id="edit-requirements"
+                        value={editForm.requirements}
+                        onChange={(e) => setEditForm((f) => ({ ...f, requirements: e.target.value }))}
+                      />
+                    </Field>
+                  </>
+                )}
+
+                {editError && <p className="text-sm text-red-400">{editError}</p>}
+
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button type="button" variant="outline" onClick={() => setEditing(false)} disabled={editSaving}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={editSaving}>
+                    {editSaving ? 'Saving…' : 'Save changes'}
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </div>
         </div>
       )}
 
