@@ -174,6 +174,32 @@ export default function HackathonDetail() {
         <ArrowLeft size={15} /> Back to Hackathons
       </button>
 
+      {hackathon.community_links?.some((link) => link.url) && (
+        <Card className="mb-6 border-student/30 bg-student-soft/40">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-sm font-medium text-white">
+              <Link2 size={16} className="shrink-0 text-student" />
+              Everyone must join the WhatsApp group to receive important notices and updates.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {hackathon.community_links
+                .filter((link) => link.url)
+                .map((link, index) => (
+                  <a
+                    key={index}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 rounded-lg border border-student/30 bg-student px-3.5 py-2 text-sm font-semibold text-bg transition hover:brightness-110"
+                  >
+                    {link.label || 'Join group'} <ArrowUpRight size={14} />
+                  </a>
+                ))}
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card>
