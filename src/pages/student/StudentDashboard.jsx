@@ -92,21 +92,22 @@ export default function StudentDashboard() {
             {exploreItems.map((item) => (
               <div
                 key={`${item.kind}-${item.id}`}
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-bg-border bg-white/[0.02] px-4 py-3.5 transition-colors hover:border-white/20"
+                className="flex cursor-pointer flex-col gap-3 rounded-xl border border-bg-border bg-white/[0.02] p-4 transition-colors hover:border-white/20 sm:flex-row sm:items-center sm:px-4 sm:py-3.5"
                 onClick={() => navigate(`/dashboard/student/${item.kind}/${item.id}`)}
               >
                 {item.thumbnail_url ? (
-                  <img src={item.thumbnail_url} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />
+                  <img src={item.thumbnail_url} alt="" className="h-36 w-full rounded-lg object-cover sm:h-11 sm:w-11 sm:shrink-0" />
                 ) : (
-                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${item.kind === 'hackathons' ? 'bg-organizer-soft text-organizer' : 'bg-student-soft text-student'}`}>
-                    {item.kind === 'hackathons' ? <Trophy size={18} /> : <Briefcase size={18} />}
+                  <span className={`flex h-36 w-full shrink-0 items-center justify-center rounded-lg sm:h-11 sm:w-11 ${item.kind === 'hackathons' ? 'bg-organizer-soft text-organizer' : 'bg-student-soft text-student'}`}>
+                    {item.kind === 'hackathons' ? <Trophy size={28} className="sm:hidden" /> : <Briefcase size={28} className="sm:hidden" />}
+                    {item.kind === 'hackathons' ? <Trophy size={18} className="hidden sm:block" /> : <Briefcase size={18} className="hidden sm:block" />}
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{item.title}</p>
                   <p className="mt-0.5 truncate text-xs text-white/40">{item.subtitle} · {formatDate(item.date)}</p>
                 </div>
-                <Badge variant={item.kind === 'hackathons' ? 'organizer' : 'volunteer'} className="ml-1 shrink-0 capitalize">
+                <Badge variant={item.kind === 'hackathons' ? 'organizer' : 'volunteer'} className="self-start capitalize sm:ml-1 sm:shrink-0 sm:self-auto">
                   {item.kind === 'hackathons' ? 'Hackathon' : 'Internship'}
                 </Badge>
               </div>

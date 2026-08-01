@@ -240,6 +240,52 @@ export default function OrganizerEventDetail() {
     doc.save(`${safeTitle}_participants.pdf`)
   }
 
+  // CSV export — a plain, portable backup of every registration for this
+  // event (one row per member) that the organizer can download themselves
+  // at any time, independent of the live database. Escapes quotes/commas/
+  // newlines per RFC 4180 so names or bios containing commas don't break
+  // the file when opened in Excel/Sheets.
+  const escapeCsvCell = (value) => {
+    const str = String(value ?? '')
+    if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`
+    return str
+  }
+
+  const downloadParticipantsCsv = () => {
+    const rows = [
+      ['Team / Applicant', 'Status', 'Member #', 'Role in Team', 'Name', 'Email', 'Contact', 'Skills'],
+    ]
+
+    eventApplications.forEach((a) => {
+      const { team, members } = membersFor(a)
+      const groupName = a.team_id ? a.team_name || 'Team' : a.user_name || 'Applicant'
+      members.forEach((m, i) => {
+        rows.push([
+          groupName,
+          a.status.replace('_', ' '),
+          i + 1,
+          team ? (m.isLeader ? 'Leader' : 'Member') : 'Applicant',
+          m.name || '',
+          m.email || '',
+          m.contact || '',
+          (m.skills || []).join('; '),
+        ])
+      })
+    })
+
+    const csv = rows.map((row) => row.map(escapeCsvCell).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const safeTitle = (event.title || 'event').replace(/[^a-z0-9]+/gi, '_').toLowerCase()
+    link.href = url
+    link.download = `${safeTitle}_participants.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <DashboardShell role="organizer" title={event.title} subtitle="Your event environment — visible only to you.">
       <button
@@ -439,13 +485,18 @@ export default function OrganizerEventDetail() {
 
       {tab === 'details' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-white/40">
               Full roster for every application to this event — {eventApplications.length} total.
             </p>
-            <Button variant="outline" className="text-xs" onClick={downloadParticipantsPdf}>
-              <Download size={14} /> Download as PDF
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" className="text-xs" onClick={downloadParticipantsCsv}>
+                <Download size={14} /> Download as CSV
+              </Button>
+              <Button variant="outline" className="text-xs" onClick={downloadParticipantsPdf}>
+                <Download size={14} /> Download as PDF
+              </Button>
+            </div>
           </div>
 
           {eventApplications.map((a) => {
