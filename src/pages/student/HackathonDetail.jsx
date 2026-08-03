@@ -72,6 +72,15 @@ export default function HackathonDetail() {
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  // Teammates who already joined via the team code — their name/email/contact
+  // came from their own Join Team submission, so we surface it here read-only
+  // instead of asking the leader to retype it. Excludes the leader (they have
+  // their own section above). This recomputes on every render, so as soon as
+  // someone joins by code the form updates automatically.
+  const joinedTeammates = (myTeamForThisHackathon?.members || []).filter(
+    (m) => m.id !== myTeamForThisHackathon?.leader_id,
+  )
+
   // Only offer reminder rows for teammates who genuinely haven't joined yet.
   // Previously this was a static requiredTeamSize - 1 regardless of how many
   // real members had already joined via the team code, so a leader with
@@ -621,10 +630,36 @@ export default function HackathonDetail() {
                     </Field>
                   </div>
 
+                  {joinedTeammates.length > 0 && (
+                    <div className="space-y-3 border-t border-bg-border pt-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-white/30">
+                        2. Team members
+                      </p>
+                      <p className="text-[11px] text-white/35">
+                        Filled in automatically as teammates join using your team code.
+                      </p>
+                      {joinedTeammates.map((m) => (
+                        <div
+                          key={m.id}
+                          className="flex items-start gap-2 rounded-lg border border-student/30 bg-student-soft/10 p-3"
+                        >
+                          <div className="flex-1 space-y-2">
+                            <Input value={m.name} readOnly disabled className="opacity-80" />
+                            <Input value={m.email} readOnly disabled className="opacity-80" />
+                            <Input value={m.contact || ''} readOnly disabled className="opacity-80" />
+                          </div>
+                          <span className="mt-2 flex shrink-0 items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-student">
+                            <CheckCircle2 size={12} /> Joined
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {maxMemberRows > 0 && (
                     <div className="space-y-3 border-t border-bg-border pt-4">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-white/30">
-                        2. Email a teammate a reminder (optional)
+                        {joinedTeammates.length > 0 ? '3. Email a teammate a reminder (optional)' : '2. Email a teammate a reminder (optional)'}
                       </p>
                       <p className="text-[11px] text-white/35">
                         Not required — your teammates already join through your team code. This just sends a reminder
@@ -674,7 +709,9 @@ export default function HackathonDetail() {
                   )}
 
                   <div className="space-y-4 border-t border-bg-border pt-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/30">3. Problem statements</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/30">
+                      {joinedTeammates.length > 0 ? '4. Problem statements' : '3. Problem statements'}
+                    </p>
                     <Field label="Problem statement 1" htmlFor="problemStatement1" hint="Required.">
                       <Textarea
                         id="problemStatement1"
