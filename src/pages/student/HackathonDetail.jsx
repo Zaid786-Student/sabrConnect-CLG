@@ -359,7 +359,7 @@ export default function HackathonDetail() {
                           <Link to={`/dashboard/student/teams/${t.id}`} className="block truncate font-display text-sm font-semibold hover:text-student">
                             {t.team_name}
                           </Link>
-                          <p className="text-xs text-white/35">Led by {t.leader_name || 'Team leader'}</p>
+                          <p className="text-xs text-white/35">Lead by {t.leader_name || 'Team leader'}</p>
                         </div>
                       </div>
 
