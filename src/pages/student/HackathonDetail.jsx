@@ -669,7 +669,7 @@ export default function HackathonDetail() {
                         <div key={index} className="flex items-start gap-2 rounded-lg border border-bg-border bg-white/[0.02] p-3">
                           <div className="flex-1 space-y-2">
                             <Input
-                              placeholder={`Member ${index + 2} name`}
+                              placeholder={`Member ${joinedTeammates.length + index + 2} name`}
                               value={row.name}
                               onChange={(e) => updateMemberRow(index, 'name', e.target.value)}
                             />
