@@ -638,12 +638,15 @@ export default function HackathonDetail() {
                       <p className="text-[11px] text-white/35">
                         Filled in automatically as teammates join using your team code.
                       </p>
-                      {joinedTeammates.map((m) => (
+                      {joinedTeammates.map((m, index) => (
                         <div
                           key={m.id}
                           className="flex items-start gap-2 rounded-lg border border-student/30 bg-student-soft/10 p-3"
                         >
                           <div className="flex-1 space-y-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-student/80">
+                              Member {index + 2}
+                            </p>
                             <Input value={m.name} readOnly disabled className="opacity-80" />
                             <Input value={m.email} readOnly disabled className="opacity-80" />
                             <Input value={m.contact || ''} readOnly disabled className="opacity-80" />
