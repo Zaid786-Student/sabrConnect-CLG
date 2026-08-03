@@ -72,7 +72,13 @@ export default function HackathonDetail() {
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const maxMemberRows = Math.max(0, requiredTeamSize - 1)
+  // Only offer reminder rows for teammates who genuinely haven't joined yet.
+  // Previously this was a static requiredTeamSize - 1 regardless of how many
+  // real members had already joined via the team code, so a leader with
+  // 5/6 members already in would still see blank "Member 2" reminder slots
+  // for people who were already on the team.
+  const openTeamSlots = Math.max(0, requiredTeamSize - (myTeamForThisHackathon?.members?.length || 1))
+  const maxMemberRows = openTeamSlots
 
   const addMemberRow = () => {
     if (memberRows.length >= maxMemberRows) return
