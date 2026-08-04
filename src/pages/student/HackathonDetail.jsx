@@ -249,6 +249,7 @@ export default function HackathonDetail() {
                 defaultTab={teamPanel}
                 opportunity={{ id: hackathon.id, title: hackathon.title, type: 'hackathon' }}
                 onClose={() => setTeamPanel(null)}
+                showTabSwitcher={false}
               />
             )}
           </Card>

@@ -25,7 +25,20 @@ const JOIN_ERROR_MESSAGES = {
 // internship being viewed) so a team created here registers against it
 // immediately — same createTeam/joinTeamByCode calls either way, so the
 // logic never drifts between the two surfaces.
-export default function TeamRegistrationPanel({ opportunity = null, defaultTab = 'create', onCreated, onJoined, onClose }) {
+export default function TeamRegistrationPanel({
+  opportunity = null,
+  defaultTab = 'create',
+  onCreated,
+  onJoined,
+  onClose,
+  // When the caller already lets the user pick Create vs Join before this
+  // panel ever opens (e.g. the "Create Team" / "Join Team" buttons on the
+  // Hackathon Details page), showing this same choice again inside the panel
+  // is a duplicate control. Callers that don't offer that choice beforehand
+  // (e.g. the standalone "My Teams" page reuses this same in-panel switcher)
+  // can leave this on.
+  showTabSwitcher = true,
+}) {
   const { user } = useAuth()
   const { createTeam, joinTeamByCode } = useData()
 
@@ -175,24 +188,30 @@ export default function TeamRegistrationPanel({ opportunity = null, defaultTab =
   return (
     <Card className="mb-6">
       <div className="mb-5 flex items-center justify-between gap-3">
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant={activeForm === 'create' ? 'primary' : 'outline'}
-            className="text-xs"
-            onClick={() => setActiveForm('create')}
-          >
-            <Plus size={14} /> Create Team
-          </Button>
-          <Button
-            type="button"
-            variant={activeForm === 'join' ? 'primary' : 'outline'}
-            className="text-xs"
-            onClick={() => setActiveForm('join')}
-          >
-            <KeyRound size={14} /> Join Team
-          </Button>
-        </div>
+        {showTabSwitcher ? (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={activeForm === 'create' ? 'primary' : 'outline'}
+              className="text-xs"
+              onClick={() => setActiveForm('create')}
+            >
+              <Plus size={14} /> Create Team
+            </Button>
+            <Button
+              type="button"
+              variant={activeForm === 'join' ? 'primary' : 'outline'}
+              className="text-xs"
+              onClick={() => setActiveForm('join')}
+            >
+              <KeyRound size={14} /> Join Team
+            </Button>
+          </div>
+        ) : (
+          <h3 className="font-display text-sm font-semibold">
+            {activeForm === 'create' ? 'Create Team' : 'Join Team'}
+          </h3>
+        )}
         {onClose && (
           <button type="button" onClick={onClose} className="text-white/40 hover:text-white">
             <X size={16} />
