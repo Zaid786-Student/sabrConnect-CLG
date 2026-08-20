@@ -1,11 +1,14 @@
 import { Trash2 } from 'lucide-react'
+import ExpandableText from '../ui/ExpandableText'
 
 // SIH-style problem statement table — shared by the organizer's "Problem
 // Statements" tab (with a delete action) and the student hackathon detail
-// page (read-only).
+// page (read-only). Description is clamped with a "See More" toggle so a
+// long paragraph doesn't blow out every row's height.
 export default function ProblemStatementTable({
   statements = [],
   onDelete,
+  accent = 'student',
   emptyText = 'No problem statements published yet — check back closer to the event.',
 }) {
   if (!statements.length) {
@@ -34,7 +37,18 @@ export default function ProblemStatementTable({
               <td className="py-3 pr-4 whitespace-nowrap font-medium text-white/80">{s.ps_number || '—'}</td>
               <td className="py-3 pr-4 font-medium">{s.title}</td>
               <td className="py-3 pr-4 text-white/60">{s.category || '—'}</td>
-              <td className="py-3 max-w-xs text-white/60">{s.description || '—'}</td>
+              <td className="py-3 min-w-[220px] max-w-sm text-white/60">
+                {s.description ? (
+                  <ExpandableText
+                    text={s.description}
+                    lines={2}
+                    accent={accent}
+                    textClassName="text-sm text-white/60"
+                  />
+                ) : (
+                  '—'
+                )}
+              </td>
               {onDelete && (
                 <td className="py-3 pl-4 text-right">
                   <button

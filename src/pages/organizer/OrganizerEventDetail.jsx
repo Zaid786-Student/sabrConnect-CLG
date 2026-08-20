@@ -636,7 +636,7 @@ export default function OrganizerEventDetail() {
 
           <Card>
             <h2 className="mb-4 font-display text-base font-semibold">Published Problem Statements</h2>
-            <ProblemStatementTable statements={event.problem_statements} onDelete={deleteProblemStatement} />
+            <ProblemStatementTable statements={event.problem_statements} onDelete={deleteProblemStatement} accent="organizer" />
           </Card>
         </div>
       )}
