@@ -154,6 +154,44 @@ export function useOpportunitiesModule({ addNotification, getApplicantIdsForOppo
     )
   }
 
+  // ---------- Problem Statements (hackathons only) ----------
+  // Stored directly on the hackathon row as a jsonb array (same pattern as
+  // tags/community_links), so these ride on the existing updateHackathon
+  // plumbing/Realtime sync instead of needing a separate table.
+  const addProblemStatement = async (hackathonId, statement) => {
+    const hackathon = hackathons.find((h) => h.id === hackathonId)
+    const newStatement = {
+      id: uid('ps'),
+      ps_number: statement.ps_number || '',
+      title: statement.title || '',
+      category: statement.category || '',
+      description: statement.description || '',
+      created_at: new Date().toISOString(),
+    }
+    const nextList = [...(hackathon?.problem_statements || []), newStatement]
+    const result = await updateHackathon(hackathonId, { problem_statements: nextList })
+    if (result.success) {
+      getApplicantIdsForOpportunity?.(hackathonId).forEach((userId) =>
+        addNotification?.(userId, {
+          title: `New problem statement: ${hackathon?.title || 'a hackathon you applied to'}`,
+          message: newStatement.title,
+          role: 'student',
+          link: `/dashboard/student/hackathons/${hackathonId}`,
+        }),
+      )
+    }
+    return result
+  }
+
+  const removeProblemStatement = async (hackathonId, statementId) => {
+    const hackathon = hackathons.find((h) => h.id === hackathonId)
+    const nextList = (hackathon?.problem_statements || []).filter((s) => s.id !== statementId)
+    return updateHackathon(hackathonId, { problem_statements: nextList })
+  }
+
+  // pdf is either { name, data_url, uploaded_at } or null (to remove it).
+  const setProblemStatementPdf = async (hackathonId, pdf) => updateHackathon(hackathonId, { problem_statement_pdf: pdf })
+
   // ---------- Internships ----------
   const addInternship = async (data, organizer) => {
     const base = {
@@ -256,6 +294,9 @@ export function useOpportunitiesModule({ addNotification, getApplicantIdsForOppo
     addHackathon,
     updateHackathon,
     addHackathonNotice,
+    addProblemStatement,
+    removeProblemStatement,
+    setProblemStatementPdf,
     addInternship,
     updateInternship,
     addInternshipNotice,

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { ArrowLeft, Check, X, Users2, ClipboardCheck, Megaphone, Lock, Eye, XCircle, Download, Pencil } from 'lucide-react'
+import { ArrowLeft, Check, X, Users2, ClipboardCheck, Megaphone, Lock, Eye, XCircle, Download, Pencil, FileText, Upload, Trash2 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
 import DashboardShell from '../../components/layout/DashboardShell'
@@ -9,10 +9,13 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Input, { Field, Textarea } from '../../components/ui/Input'
 import NoticeList from '../../components/dashboard/NoticeList'
+import ProblemStatementTable from '../../components/dashboard/ProblemStatementTable'
 import JudgingTab from './Judging'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
-import { formatDate, splitTags } from '../../lib/utils'
+import { formatDate, splitTags, fileToDataUrl } from '../../lib/utils'
+
+const MAX_PS_PDF_BYTES = 5 * 1024 * 1024 // 5MB — demo-safe size for a data-url PDF
 
 const appStatusVariant = { accepted: 'success', in_review: 'warning', submitted: 'info', rejected: 'neutral' }
 
@@ -30,6 +33,9 @@ export default function OrganizerEventDetail() {
     updateInternship,
     addHackathonNotice,
     addInternshipNotice,
+    addProblemStatement,
+    removeProblemStatement,
+    setProblemStatementPdf,
     getSubmissionsForHackathon,
     getSubmissionsForInternship,
     setSubmissionStatus,
@@ -45,6 +51,12 @@ export default function OrganizerEventDetail() {
   const [editForm, setEditForm] = useState(null)
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
+  const [psForm, setPsForm] = useState({ ps_number: '', title: '', category: '', description: '' })
+  const [psError, setPsError] = useState('')
+  const [psSubmitting, setPsSubmitting] = useState(false)
+  const [pdfError, setPdfError] = useState('')
+  const [pdfUploading, setPdfUploading] = useState(false)
+  const psPdfInputRef = useRef(null)
 
   const isHackathon = kind === 'hackathon'
   const event = isHackathon ? hackathons.find((h) => h.id === id) : internships.find((i) => i.id === id)
@@ -90,6 +102,50 @@ export default function OrganizerEventDetail() {
     else addInternshipNotice(event.id, noticeForm)
     setNoticeForm({ title: '', content: '' })
   }
+
+  // ---------- Problem Statements (hackathons only) ----------
+  const submitProblemStatement = async (e) => {
+    e.preventDefault()
+    setPsError('')
+    if (!psForm.title.trim()) {
+      setPsError('Title is required.')
+      return
+    }
+    setPsSubmitting(true)
+    const result = await addProblemStatement(event.id, psForm)
+    setPsSubmitting(false)
+    if (!result?.success) {
+      setPsError(result?.error || 'Something went wrong adding this problem statement — please try again.')
+      return
+    }
+    setPsForm({ ps_number: '', title: '', category: '', description: '' })
+  }
+
+  const deleteProblemStatement = (statementId) => removeProblemStatement(event.id, statementId)
+
+  const pickProblemStatementPdf = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setPdfError('')
+    if (file.type !== 'application/pdf') {
+      setPdfError('Please choose a PDF file.')
+      return
+    }
+    if (file.size > MAX_PS_PDF_BYTES) {
+      setPdfError('PDF is too large — please use a file under 5MB.')
+      return
+    }
+    setPdfUploading(true)
+    try {
+      const dataUrl = await fileToDataUrl(file)
+      await setProblemStatementPdf(event.id, { name: file.name, data_url: dataUrl, uploaded_at: new Date().toISOString() })
+    } finally {
+      setPdfUploading(false)
+    }
+  }
+
+  const removeProblemStatementPdf = () => setProblemStatementPdf(event.id, null)
 
   const openEdit = () => {
     setEditError('')
@@ -154,6 +210,7 @@ export default function OrganizerEventDetail() {
     { key: 'details', label: 'Details' },
     { key: 'judging', label: `Judging (${eventSubmissions.length})` },
     { key: 'notices', label: `Notices (${event.notices?.length || 0})` },
+    ...(isHackathon ? [{ key: 'problem_statements', label: `Problem Statements (${event.problem_statements?.length || 0})` }] : []),
   ]
 
   // Shared by the Participants "Details" modal, the Details tab, and the PDF
@@ -479,6 +536,107 @@ export default function OrganizerEventDetail() {
           <Card>
             <h2 className="mb-4 font-display text-base font-semibold">Past Notices</h2>
             <NoticeList notices={event.notices} accent="organizer" />
+          </Card>
+        </div>
+      )}
+
+      {tab === 'problem_statements' && isHackathon && (
+        <div className="space-y-6">
+          <Card>
+            <div className="mb-4 flex items-center gap-2">
+              <FileText size={16} className="text-organizer" />
+              <h2 className="font-display text-base font-semibold">Problem Statement PDF</h2>
+            </div>
+            <p className="mb-3 text-xs text-white/40">
+              Upload the full problem statement booklet as a PDF — students will see a Download PDF button on the
+              hackathon page.
+            </p>
+            {event.problem_statement_pdf?.data_url ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bg-border bg-white/[0.02] px-4 py-3.5">
+                <div className="flex items-center gap-2 text-sm">
+                  <FileText size={15} className="text-organizer" />
+                  <span className="font-medium">{event.problem_statement_pdf.name || 'problem-statements.pdf'}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <a
+                    href={event.problem_statement_pdf.data_url}
+                    download={event.problem_statement_pdf.name || 'problem-statements.pdf'}
+                    className="flex items-center gap-1.5 text-xs font-medium text-organizer hover:underline"
+                  >
+                    <Download size={13} /> Download
+                  </a>
+                  <button
+                    type="button"
+                    onClick={removeProblemStatementPdf}
+                    className="flex items-center gap-1.5 text-xs font-medium text-white/40 hover:text-red-400"
+                  >
+                    <Trash2 size={13} /> Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="rounded-xl border border-dashed border-bg-border px-4 py-6 text-center text-xs text-white/30">
+                No PDF uploaded yet.
+              </p>
+            )}
+            <input
+              ref={psPdfInputRef}
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              onChange={pickProblemStatementPdf}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3 text-xs"
+              onClick={() => psPdfInputRef.current?.click()}
+              disabled={pdfUploading}
+            >
+              <Upload size={13} /> {pdfUploading ? 'Uploading…' : event.problem_statement_pdf?.data_url ? 'Replace PDF' : 'Upload PDF'}
+            </Button>
+            {pdfError && <p className="mt-2 text-xs text-red-400">{pdfError}</p>}
+          </Card>
+
+          <Card>
+            <div className="mb-4 flex items-center gap-2">
+              <FileText size={16} className="text-organizer" />
+              <h2 className="font-display text-base font-semibold">Add a Problem Statement</h2>
+            </div>
+            <form onSubmit={submitProblemStatement} className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  placeholder="PS Number (e.g. PS01)"
+                  value={psForm.ps_number}
+                  onChange={(e) => setPsForm((f) => ({ ...f, ps_number: e.target.value }))}
+                />
+                <Input
+                  placeholder="Category / Domain"
+                  value={psForm.category}
+                  onChange={(e) => setPsForm((f) => ({ ...f, category: e.target.value }))}
+                />
+              </div>
+              <Input
+                placeholder="Problem statement title"
+                required
+                value={psForm.title}
+                onChange={(e) => setPsForm((f) => ({ ...f, title: e.target.value }))}
+              />
+              <Textarea
+                placeholder="Description"
+                value={psForm.description}
+                onChange={(e) => setPsForm((f) => ({ ...f, description: e.target.value }))}
+              />
+              {psError && <p className="text-xs text-red-400">{psError}</p>}
+              <Button type="submit" className="!py-2 text-xs" disabled={psSubmitting}>
+                {psSubmitting ? 'Adding…' : 'Add Problem Statement'}
+              </Button>
+            </form>
+          </Card>
+
+          <Card>
+            <h2 className="mb-4 font-display text-base font-semibold">Published Problem Statements</h2>
+            <ProblemStatementTable statements={event.problem_statements} onDelete={deleteProblemStatement} />
           </Card>
         </div>
       )}

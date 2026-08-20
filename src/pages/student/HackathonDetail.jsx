@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, CalendarDays, MapPin, Trophy, Users2, CheckCircle2, Clock, Link2, ArrowUpRight,
-  Plus, KeyRound, X, UserRound, UserRoundX, Crown, Lock, PartyPopper,
+  Plus, KeyRound, X, UserRound, UserRoundX, Crown, Lock, PartyPopper, FileText, Download,
 } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card } from '../../components/ui/Card'
@@ -10,6 +10,7 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Input, { Field, Textarea, Select } from '../../components/ui/Input'
 import NoticeList from '../../components/dashboard/NoticeList'
+import ProblemStatementTable from '../../components/dashboard/ProblemStatementTable'
 import ExpandableText from '../../components/ui/ExpandableText'
 import TeamAvatar from '../../components/teams/TeamAvatar'
 import TeamRegistrationPanel from '../../components/teams/TeamRegistrationPanel'
@@ -344,6 +345,29 @@ export default function HackathonDetail() {
           <Card>
             <h2 className="mb-4 font-display text-base font-semibold">Notices & Updates</h2>
             <NoticeList notices={hackathon.notices} accent="student" expandable />
+          </Card>
+
+          <Card>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 font-display text-base font-semibold">
+                  <FileText size={16} className="text-student" /> Problem Statements
+                </h2>
+                <p className="mt-0.5 text-xs text-white/40">
+                  Pick a problem statement to build on for this hackathon.
+                </p>
+              </div>
+              {hackathon.problem_statement_pdf?.data_url && (
+                <a
+                  href={hackathon.problem_statement_pdf.data_url}
+                  download={hackathon.problem_statement_pdf.name || 'problem-statements.pdf'}
+                  className="flex items-center gap-1.5 rounded-lg border border-student/30 bg-student px-3.5 py-2 text-sm font-semibold text-bg transition hover:brightness-110"
+                >
+                  <Download size={14} /> Download PDF
+                </a>
+              )}
+            </div>
+            <ProblemStatementTable statements={hackathon.problem_statements} />
           </Card>
 
           <Card>
