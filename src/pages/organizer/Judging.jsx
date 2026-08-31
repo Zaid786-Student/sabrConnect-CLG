@@ -9,7 +9,7 @@
 // winner is always an explicit organizer action.
 // ---------------------------------------------------------------------------
 import { useEffect, useState } from 'react'
-import { Trophy, Github, ExternalLink, Video, Award, ThumbsDown, Bookmark, PenSquare } from 'lucide-react'
+import { Trophy, Github, ExternalLink, Video, Award, ThumbsDown, Bookmark, PenSquare, File as FileIcon } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
@@ -111,13 +111,18 @@ function SubmissionCard({ submission, score, reasons, teamName, setSubmissionSta
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-display text-base font-semibold">{submission.project_title}</h3>
             <Badge variant={statusVariant[submission.status]} className="capitalize">{submission.status}</Badge>
+            {submission.theme && <span className="rounded-full border border-bg-border px-2 py-0.5 text-[10px] text-white/40">{submission.theme}</span>}
+            {submission.stage && <span className="rounded-full border border-bg-border px-2 py-0.5 text-[10px] text-white/40">{submission.stage}</span>}
           </div>
           <p className="mt-0.5 text-xs text-white/40">{teamName} · submitted {formatDate(submission.submitted_at)}</p>
         </div>
         <ScorePill score={score} />
       </div>
 
-      <p className="mt-3 text-sm text-white/60">{submission.description}</p>
+      {submission.problem_statement && (
+        <p className="mt-3 text-sm text-white/60"><span className="text-white/35">Problem: </span>{submission.problem_statement}</p>
+      )}
+      <p className="mt-2 text-sm text-white/60">{submission.description}</p>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {reasons.map((r) => (
@@ -134,6 +139,11 @@ function SubmissionCard({ submission, score, reasons, teamName, setSubmissionSta
       )}
 
       <div className="mt-3 flex flex-wrap gap-4 text-xs text-white/40">
+        {submission.ppt_url && (
+          <a href={submission.ppt_url} download={submission.ppt_file_name || 'presentation.pptx'} className="flex items-center gap-1 hover:text-student">
+            <FileIcon size={13} /> {submission.ppt_file_name || 'PPT'}
+          </a>
+        )}
         {submission.repo_url && (
           <a href={submission.repo_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-student">
             <Github size={13} /> Repo

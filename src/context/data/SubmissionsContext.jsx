@@ -55,7 +55,12 @@ export function useSubmissionsModule({ addNotification, sendMail, getTeam, getHa
 
   const buildDraft = (data) => ({
     project_title: data.project_title || '',
+    problem_statement: data.problem_statement || '',
+    theme: data.theme || '',
     description: data.description || '',
+    ppt_url: data.ppt_url || '',
+    ppt_file_name: data.ppt_file_name || '',
+    stage: data.stage || '',
     repo_url: data.repo_url || '',
     demo_url: data.demo_url || '',
     video_url: data.video_url || '',

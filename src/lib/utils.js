@@ -29,6 +29,33 @@ export const HACKATHON_INTERESTS = [
   'Open Data', 'EdTech', 'Gaming', 'Cyber Security', 'Cloud', 'UI/UX',
 ]
 
+// Full project themes shown on the "Submit Project" form — kept as their
+// full, spelled-out form (not just acronyms) so students immediately know
+// what each one means.
+export const PROJECT_THEMES = [
+  'Cyber Security',
+  'Blockchain / Web3',
+  'AI/ML (Artificial Intelligence & Machine Learning)',
+  'Cloud Computing',
+  'IoT (Internet of Things)',
+  'FinTech (Financial Technology)',
+  'HealthTech (Healthcare Technology)',
+  'EdTech (Educational Technology)',
+  'AR/VR (Augmented Reality / Virtual Reality)',
+  'AgriTech (Agricultural Technology)',
+  'Sustainability / CleanTech',
+  'Robotics & Automation',
+  'Open Innovation / Other',
+]
+
+// Current build stage of the project, shown on the "Submit Project" form.
+export const PROJECT_STAGES = [
+  'Idea Stage',
+  'Prototype Ready',
+  'Functional Prototype',
+  'Ready to Deploy',
+]
+
 export const EXPERIENCE_LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Expert']
 
 export const AVAILABILITY_STATUSES = ['Available', 'Busy', 'Not Available']

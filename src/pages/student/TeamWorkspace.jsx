@@ -9,7 +9,7 @@ import {
 import DashboardShell from '../../components/layout/DashboardShell'
 import { Card } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
-import Input, { Field, Textarea } from '../../components/ui/Input'
+import Input, { Field, Textarea, Select } from '../../components/ui/Input'
 import NoticeList from '../../components/dashboard/NoticeList'
 import TeamAvatar from '../../components/teams/TeamAvatar'
 import MemberProfileCard from '../../components/teams/MemberProfileCard'
@@ -17,7 +17,7 @@ import JoinRequestRow from '../../components/teams/JoinRequestRow'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { usePresence, useTyping } from '../../lib/presence'
-import { DEV_ROLES, HACKATHON_INTERESTS, TEAM_LOGO_OPTIONS, TEAM_CAPACITY, formatDate, splitTags, initials } from '../../lib/utils'
+import { DEV_ROLES, HACKATHON_INTERESTS, TEAM_LOGO_OPTIONS, TEAM_CAPACITY, PROJECT_THEMES, PROJECT_STAGES, formatDate, splitTags, initials } from '../../lib/utils'
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024 // 2MB — demo-safe size for localStorage-backed file sharing
 
@@ -859,19 +859,49 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
   const [editing, setEditing] = useState(!existing)
   const [submitError, setSubmitError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [pptError, setPptError] = useState('')
+  const [pptUploading, setPptUploading] = useState(false)
+  const pptInputRef = useRef(null)
   const [form, setForm] = useState({
     project_title: existing?.project_title || team.project_name || '',
+    problem_statement: existing?.problem_statement || '',
+    theme: existing?.theme || '',
     description: existing?.description || '',
+    ppt_url: existing?.ppt_url || '',
+    ppt_file_name: existing?.ppt_file_name || '',
+    stage: existing?.stage || '',
     repo_url: existing?.repo_url || '',
     demo_url: existing?.demo_url || '',
     video_url: existing?.video_url || '',
     tech_stack: (existing?.tech_stack || []).join(', '),
   })
 
+  // PPT upload — same data-URL pattern used for shared resources. Picking a
+  // new file always replaces whatever was previously attached.
+  const handlePptPick = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setPptError('')
+    if (file.size > MAX_FILE_BYTES) {
+      setPptError('File too large — please upload a PPT under 2MB.')
+      return
+    }
+    setPptUploading(true)
+    try {
+      const dataUrl = await fileToDataUrl(file)
+      setForm((f) => ({ ...f, ppt_url: dataUrl, ppt_file_name: file.name }))
+    } finally {
+      setPptUploading(false)
+    }
+  }
+
+  const removePpt = () => setForm((f) => ({ ...f, ppt_url: '', ppt_file_name: '' }))
+
   const submit = async (e) => {
     e.preventDefault()
     setSubmitError('')
-    if (!form.project_title.trim() || !form.description.trim()) return
+    if (!form.project_title.trim() || !form.problem_statement.trim() || !form.theme || !form.description.trim() || !form.stage) return
     if (notStarted) {
       setSubmitError(`Submissions open on ${formatDate(opportunity?.start_date)} — check back then.`)
       return
@@ -889,7 +919,12 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
     try {
       const result = await submitFn(activeId, team.id, {
         project_title: form.project_title.trim(),
+        problem_statement: form.problem_statement.trim(),
+        theme: form.theme,
         description: form.description.trim(),
+        ppt_url: form.ppt_url,
+        ppt_file_name: form.ppt_file_name,
+        stage: form.stage,
         repo_url: form.repo_url.trim(),
         demo_url: form.demo_url.trim(),
         video_url: form.video_url.trim(),
@@ -923,7 +958,20 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
           )}
         </div>
         <h3 className="mt-3 font-display text-lg font-semibold">{existing.project_title}</h3>
-        <p className="mt-2 text-sm leading-relaxed text-white/60">{existing.description}</p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {existing.theme && <span className="rounded-full border border-student/30 bg-student-soft px-2.5 py-1 text-[11px] font-medium text-student">{existing.theme}</span>}
+          {existing.stage && <span className="rounded-full border border-bg-border bg-white/[0.02] px-2.5 py-1 text-[11px] text-white/50">{existing.stage}</span>}
+        </div>
+        {existing.problem_statement && (
+          <div className="mt-3">
+            <p className="text-xs font-medium text-white/40">Problem Statement</p>
+            <p className="mt-1 text-sm leading-relaxed text-white/60">{existing.problem_statement}</p>
+          </div>
+        )}
+        <div className="mt-3">
+          <p className="text-xs font-medium text-white/40">Description</p>
+          <p className="mt-1 text-sm leading-relaxed text-white/60">{existing.description}</p>
+        </div>
         {existing.tech_stack?.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {existing.tech_stack.map((t) => (
@@ -932,6 +980,11 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
           </div>
         )}
         <div className="mt-4 flex flex-wrap gap-4 text-xs">
+          {existing.ppt_url && (
+            <a href={existing.ppt_url} download={existing.ppt_file_name || 'presentation.pptx'} className="flex items-center gap-1.5 text-white/45 hover:text-student">
+              <FileIcon size={13} /> {existing.ppt_file_name || 'PPT'}
+            </a>
+          )}
           {existing.repo_url && (
             <a href={existing.repo_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-white/45 hover:text-student">
               <Github size={13} /> Repo
@@ -969,23 +1022,76 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
         <Field label="Project title" htmlFor="proj-title">
           <Input id="proj-title" value={form.project_title} onChange={(e) => setForm((f) => ({ ...f, project_title: e.target.value }))} required />
         </Field>
+
+        <Field label="Problem Statement" htmlFor="proj-problem" hint="What problem are you solving, and for whom?">
+          <Textarea id="proj-problem" value={form.problem_statement} onChange={(e) => setForm((f) => ({ ...f, problem_statement: e.target.value }))} required />
+        </Field>
+
+        <Field label="Theme" htmlFor="proj-theme">
+          <Select id="proj-theme" value={form.theme} onChange={(e) => setForm((f) => ({ ...f, theme: e.target.value }))} required>
+            <option value="" disabled>Select a theme</option>
+            {PROJECT_THEMES.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </Select>
+        </Field>
+
         <Field label="Description" htmlFor="proj-desc" hint="What does it do, what did you build, what's the impact?">
           <Textarea id="proj-desc" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} required />
         </Field>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Repo URL" htmlFor="proj-repo">
-            <Input id="proj-repo" value={form.repo_url} onChange={(e) => setForm((f) => ({ ...f, repo_url: e.target.value }))} placeholder="https://github.com/..." />
-          </Field>
-          <Field label="Demo URL" htmlFor="proj-demo">
-            <Input id="proj-demo" value={form.demo_url} onChange={(e) => setForm((f) => ({ ...f, demo_url: e.target.value }))} placeholder="https://..." />
-          </Field>
-          <Field label="Video URL" htmlFor="proj-video">
-            <Input id="proj-video" value={form.video_url} onChange={(e) => setForm((f) => ({ ...f, video_url: e.target.value }))} placeholder="https://youtu.be/..." />
+
+        <Field label="Submit Your PPT" htmlFor="proj-ppt" hint="PPT under 2MB. Choosing a new file replaces the one currently attached.">
+          <input ref={pptInputRef} id="proj-ppt" type="file" accept=".ppt,.pptx,.pdf" className="hidden" onChange={handlePptPick} />
+          {pptError && <p className="mb-1.5 text-xs text-red-400">{pptError}</p>}
+          {form.ppt_file_name ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-bg-border bg-white/[0.02] px-3.5 py-2.5">
+              <span className="flex min-w-0 items-center gap-2 text-sm text-white/70">
+                <FileIcon size={15} className="shrink-0 text-volunteer" />
+                <span className="truncate">{form.ppt_file_name}</span>
+              </span>
+              <div className="flex shrink-0 gap-3 text-xs font-medium">
+                <button type="button" onClick={() => pptInputRef.current?.click()} disabled={pptUploading} className="text-white/50 hover:text-white">
+                  {pptUploading ? 'Uploading...' : 'Replace'}
+                </button>
+                <button type="button" onClick={removePpt} className="text-white/50 hover:text-red-400">
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <Button type="button" variant="outline" onClick={() => pptInputRef.current?.click()} disabled={pptUploading}>
+              <Paperclip size={14} /> {pptUploading ? 'Uploading...' : 'Choose PPT file'}
+            </Button>
+          )}
+        </Field>
+
+        <Field label="Current stage of Project" htmlFor="proj-stage">
+          <Select id="proj-stage" value={form.stage} onChange={(e) => setForm((f) => ({ ...f, stage: e.target.value }))} required>
+            <option value="" disabled>Select current stage</option>
+            {PROJECT_STAGES.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </Select>
+        </Field>
+
+        <div className="border-t border-bg-border pt-4">
+          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-white/30">Optional links</p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Repo URL" htmlFor="proj-repo">
+              <Input id="proj-repo" value={form.repo_url} onChange={(e) => setForm((f) => ({ ...f, repo_url: e.target.value }))} placeholder="https://github.com/..." />
+            </Field>
+            <Field label="Demo URL" htmlFor="proj-demo">
+              <Input id="proj-demo" value={form.demo_url} onChange={(e) => setForm((f) => ({ ...f, demo_url: e.target.value }))} placeholder="https://..." />
+            </Field>
+            <Field label="Video URL" htmlFor="proj-video">
+              <Input id="proj-video" value={form.video_url} onChange={(e) => setForm((f) => ({ ...f, video_url: e.target.value }))} placeholder="https://youtu.be/..." />
+            </Field>
+          </div>
+          <Field label="Tech stack" htmlFor="proj-stack" hint="Comma-separated, e.g. React, Node.js, Postgres" className="mt-4">
+            <Input id="proj-stack" value={form.tech_stack} onChange={(e) => setForm((f) => ({ ...f, tech_stack: e.target.value }))} placeholder="React, Node.js, Postgres" />
           </Field>
         </div>
-        <Field label="Tech stack" htmlFor="proj-stack" hint="Comma-separated, e.g. React, Node.js, Postgres">
-          <Input id="proj-stack" value={form.tech_stack} onChange={(e) => setForm((f) => ({ ...f, tech_stack: e.target.value }))} placeholder="React, Node.js, Postgres" />
-        </Field>
+
         {notStarted && (
           <p className="flex items-center gap-1.5 text-xs text-white/40">
             <Lock size={12} /> Submissions open on {formatDate(opportunity?.start_date)}.
