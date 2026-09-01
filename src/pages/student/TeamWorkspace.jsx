@@ -854,7 +854,10 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
       : getInternshipSubmission(team.id, activeId)
 
   const ended = opportunity?.end_date ? new Date(opportunity.end_date) < new Date() : false
-  const notStarted = opportunity?.start_date ? new Date(opportunity.start_date) > new Date() : false
+  // Submissions used to stay locked until the hackathon's start date, but
+  // any team that has finished final registration (projectUnlocked, checked
+  // by the parent before this tab even renders) should be able to submit
+  // right away — there's no separate "wait for the event to start" gate.
 
   const [editing, setEditing] = useState(!existing)
   const [submitError, setSubmitError] = useState('')
@@ -902,10 +905,6 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
     e.preventDefault()
     setSubmitError('')
     if (!form.project_title.trim() || !form.problem_statement.trim() || !form.theme || !form.description.trim() || !form.stage) return
-    if (notStarted) {
-      setSubmitError(`Submissions open on ${formatDate(opportunity?.start_date)} — check back then.`)
-      return
-    }
 
     const submitFn = activeType === 'hackathon' ? submitProject : submitTeamInternshipProject
     if (typeof submitFn !== 'function') {
@@ -1092,25 +1091,10 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
           </Field>
         </div>
 
-        {notStarted && (
-          <p className="flex items-center gap-1.5 text-xs text-white/40">
-            <Lock size={12} /> Submissions open on {formatDate(opportunity?.start_date)}.
-          </p>
-        )}
         {submitError && <p className="text-xs text-red-400">{submitError}</p>}
         <div className="flex gap-2">
-          <Button type="submit" disabled={submitting || notStarted}>
-            {notStarted ? (
-              <>
-                <Lock size={14} /> Opens {formatDate(opportunity?.start_date)}
-              </>
-            ) : submitting ? (
-              'Saving...'
-            ) : existing ? (
-              'Save changes'
-            ) : (
-              'Submit Project'
-            )}
+          <Button type="submit" disabled={submitting}>
+            {submitting ? 'Saving...' : existing ? 'Save changes' : 'Submit Project'}
           </Button>
           {existing && (
             <Button type="button" variant="outline" onClick={() => setEditing(false)}>
