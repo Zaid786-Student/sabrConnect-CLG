@@ -950,11 +950,6 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
           <div className="flex items-center gap-2 text-sm font-semibold text-student">
             <Check size={15} /> Submitted ✓
           </div>
-          {!ended && (
-            <button onClick={() => setEditing(true)} className="flex items-center gap-1.5 text-xs font-medium text-white/40 hover:text-white">
-              <Pencil size={13} /> Edit
-            </button>
-          )}
         </div>
         <h3 className="mt-3 font-display text-lg font-semibold">{existing.project_title}</h3>
         <div className="mt-2 flex flex-wrap gap-1.5">
