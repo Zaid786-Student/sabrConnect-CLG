@@ -937,7 +937,7 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Submission failed with an exception', err)
-      setSubmitError('Something went wrong saving your submission. Please try again.')
+      setSubmitError(err?.message ? `Couldn't save: ${err.message}` : 'Something went wrong saving your submission. Please try again.')
     } finally {
       setSubmitting(false)
     }

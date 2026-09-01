@@ -72,7 +72,15 @@ export function useSubmissionsModule({ addNotification, sendMail, getTeam, getHa
 
     if (existing) {
       if (isSupabaseConfigured) {
-        await supabase.from('submissions').update({ ...draft, submitted_at: new Date().toISOString() }).eq('id', existing.id)
+        const { error } = await supabase
+          .from('submissions')
+          .update({ ...draft, submitted_at: new Date().toISOString() })
+          .eq('id', existing.id)
+        if (error) {
+          // eslint-disable-next-line no-console
+          console.error('submitProject (update) failed', error)
+          throw new Error(error.message || 'Failed to save submission')
+        }
       }
       setSubmissions((list) =>
         list.map((s) => (s.id === existing.id ? { ...s, ...draft, submitted_at: new Date().toISOString() } : s)),
@@ -90,7 +98,7 @@ export function useSubmissionsModule({ addNotification, sendMail, getTeam, getHa
       if (error) {
         // eslint-disable-next-line no-console
         console.error('submitProject failed', error)
-        return undefined
+        throw new Error(error.message || 'Failed to save submission')
       }
       setSubmissions((list) => [row, ...list])
       notifyOrganizer(false)
@@ -121,7 +129,15 @@ export function useSubmissionsModule({ addNotification, sendMail, getTeam, getHa
 
     if (existing) {
       if (isSupabaseConfigured) {
-        await supabase.from('submissions').update({ ...draft, submitted_at: new Date().toISOString() }).eq('id', existing.id)
+        const { error } = await supabase
+          .from('submissions')
+          .update({ ...draft, submitted_at: new Date().toISOString() })
+          .eq('id', existing.id)
+        if (error) {
+          // eslint-disable-next-line no-console
+          console.error('submitInternshipProject (update) failed', error)
+          throw new Error(error.message || 'Failed to save submission')
+        }
       }
       setSubmissions((list) =>
         list.map((s) => (s.id === existing.id ? { ...s, ...draft, submitted_at: new Date().toISOString() } : s)),
@@ -139,7 +155,7 @@ export function useSubmissionsModule({ addNotification, sendMail, getTeam, getHa
       if (error) {
         // eslint-disable-next-line no-console
         console.error('submitInternshipProject failed', error)
-        return undefined
+        throw new Error(error.message || 'Failed to save submission')
       }
       setSubmissions((list) => [row, ...list])
       notifyOrganizer(false)
