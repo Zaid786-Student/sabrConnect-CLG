@@ -905,6 +905,11 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
     e.preventDefault()
     setSubmitError('')
     if (!form.project_title.trim() || !form.problem_statement.trim() || !form.theme || !form.description.trim() || !form.stage) return
+    // PPT is mandatory for hackathon submissions (not required for internships).
+    if (activeType === 'hackathon' && !form.ppt_url) {
+      setSubmitError('Please attach your PPT before submitting — it\u2019s required for hackathon submissions.')
+      return
+    }
 
     const submitFn = activeType === 'hackathon' ? submitProject : submitTeamInternshipProject
     if (typeof submitFn !== 'function') {
@@ -1034,9 +1039,20 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
           <Textarea id="proj-desc" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} required />
         </Field>
 
-        <Field label="Submit Your PPT" htmlFor="proj-ppt" hint="PPT under 2MB. Choosing a new file replaces the one currently attached.">
-          <input ref={pptInputRef} id="proj-ppt" type="file" accept=".ppt,.pptx,.pdf" className="hidden" onChange={handlePptPick} />
+        <Field
+          label={activeType === 'hackathon' ? 'Submit Your PPT *' : 'Submit Your PPT'}
+          htmlFor="proj-ppt"
+          hint={
+            activeType === 'hackathon'
+              ? 'Required for hackathon submissions. PPT under 2MB. Choosing a new file replaces the one currently attached.'
+              : 'PPT under 2MB. Choosing a new file replaces the one currently attached.'
+          }
+        >
+          <input ref={pptInputRef} id="proj-ppt" type="file" accept=".ppt,.pptx,.pdf" className="hidden" onChange={handlePptPick} required={activeType === 'hackathon' && !form.ppt_file_name} />
           {pptError && <p className="mb-1.5 text-xs text-red-400">{pptError}</p>}
+          {activeType === 'hackathon' && !form.ppt_file_name && !pptError && (
+            <p className="mb-1.5 text-xs text-amber-400/80">A PPT is required to submit this hackathon project.</p>
+          )}
           {form.ppt_file_name ? (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-bg-border bg-white/[0.02] px-3.5 py-2.5">
               <span className="flex min-w-0 items-center gap-2 text-sm text-white/70">
@@ -1088,7 +1104,7 @@ function ProjectTab({ team, hackathonId, internshipId, hackathons, internships, 
 
         {submitError && <p className="text-xs text-red-400">{submitError}</p>}
         <div className="flex gap-2">
-          <Button type="submit" disabled={submitting}>
+          <Button type="submit" disabled={submitting || (activeType === 'hackathon' && !form.ppt_file_name)}>
             {submitting ? 'Saving...' : existing ? 'Save changes' : 'Submit Project'}
           </Button>
           {existing && (
